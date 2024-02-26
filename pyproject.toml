@@ -1,15 +1,15 @@
-#[build-system]
-#requires = ["setuptools>=42.0", "wheel"]
-#build-backend = "setuptools.build_meta"
-
 [build-system]
-requires = ["flit_core >=3.2,<4"]
-build-backend = "flit_core.buildapi"
+requires = ["setuptools>=42.0", "wheel"]
+build-backend = "setuptools.build_meta"
 
-[project]
-name = "M2_ProposalTools"
-authors = [{name = "Charles", email = "charles.romero@gmail.com"}]
-dynamic = ["version", "description"]
+#[build-system]
+#requires = ["flit_core >=3.2,<4"]
+#build-backend = "flit_core.buildapi"
+
+#[project]
+#name = "M2_ProposalTools"
+#authors = [{name = "Charles", email = "charles.romero@gmail.com"}]
+#dynamic = ["version", "description"]
 
 [tool.pytest.ini_options]
 addopts = "--cov=M2_ProposalTools"
