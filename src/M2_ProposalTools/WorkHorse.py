@@ -7,7 +7,16 @@ from astropy.cosmology import FlatLambdaCDM
 cosmo = FlatLambdaCDM(H0=70.0, Om0=0.3, Tcmb0=2.725)
 import M2_ProposalTools.numerical_integration as ni
 from astropy.coordinates import Angle #
-import scipy
+from scipy.ndimage import filters
+import M2_ProposalTools.FilterImages as FI
+import M2_ProposalTools.MakeRMSmap as MRM
+from astropy.wcs import WCS
+from astropy.io import fits                # To read/write fits
+import sys,os
+
+
+from importlib import reload
+MRM=reload(MRM)
 
 defaultYM = 'A10'
 
@@ -280,6 +289,12 @@ def get_xymap(map,pixsize,xcentre=[],ycentre=[],oned=True,cpix=0):
     
     return x,y
 
+def make_rmap(xymap):
+
+    rmap = np.sqrt(xymap[0]**2 + xymap[1]**2)
+
+    return rmap
+
 def make_a10_map(M500,z,xymap,Theta500,nx,ny,nb_theta_range=150,Dist=False):
 
     minpixrad = (1.0*u.arcsec).to('rad')
@@ -442,7 +457,6 @@ def make_A10Map(M500,z,pixsize=2,h70=1,nb_theta_range=150,Dist=False):
 
     return ymap
 
-
 def smooth_by_M2_beam(image,pixsize=2.0):
     """
     Smooths an image by a double Gaussian.
@@ -451,12 +465,440 @@ def smooth_by_M2_beam(image,pixsize=2.0):
     
     fwhm1,norm1,fwhm2,norm2,fwhm,smfw,freq,FoV = inst_params("MUSTANG2")
 
-    sig2fwhm  = np.sqrt(8.0*np.log(2.0)) 
-    pix_sig1  = fwhm1/(pixsize*sig2fwhm)
-    pix_sig2  = fwhm2/(pixsize*sig2fwhm)
-    map1      = scipy.ndimage.filters.gaussian_filter(image, pix_sig1)
-    map2      = scipy.ndimage.filters.gaussian_filter(image, pix_sig2)
+    sig2fwhm   = np.sqrt(8.0*np.log(2.0)) 
+    pix_sigq1  = fwhm1/(pixsize*sig2fwhm*u.arcsec)
+    pix_sigq2  = fwhm2/(pixsize*sig2fwhm*u.arcsec)
+    pix_sig1   = pix_sigq1.decompose().value
+    pix_sig2   = pix_sigq2.decompose().value
+    map1       = filters.gaussian_filter(image, pix_sig1)
+    map2       = filters.gaussian_filter(image, pix_sig2)
 
-    bcmap     = map1*norm1 + map2*norm2
+    bcmap      = map1*norm1 + map2*norm2
 
     return bcmap
+
+def get_xferfile(size):
+
+    if size == 2.5:
+        xferfile       = "xfer_Function_2p5_21Aonly_PCA5_0f08Filtering.txt"
+    if size == 3.0:
+        xferfile       = "xfer_Function_3p0_21Aonly_PCA5_0f08Filtering.txt"
+    if size == 3.5:
+        xferfile       = "xfer_Function_3p5_21Aonly_PCA5_0f08Filtering.txt"
+    if size == 4.0:
+        xferfile       = "xfer_Function_4p0_21Aonly_PCA5_0f08Filtering.txt"
+    if size == 4.5:
+        xferfile       = "xfer_Function_4p5_21Aonly_PCA5_0f08Filtering.txt"
+    if size == 5.0:
+        xferfile       = "xfer_Function_5p0_21Aonly_PCA5_0f08Filtering.txt"
+
+    return xferfile
+
+def get_xfertab(size):
+
+    #mypath  = "src/M2_ProposalTools/"
+    path    = os.path.abspath(FI.__file__)
+    mypath  = path.replace("FilterImages.py","")
+    #print(mypath)
+    #import pdb;pdb.set_trace()
+    xferfile = get_xferfile(size)
+    fullpath = os.path.join(mypath,xferfile)
+    tab      = FI.get_xfer(fullpath)
+
+    return tab
+
+def lightweight_filter_ptg(skymap,size,pixsize):
+
+    tab   = get_xfertab(size)
+    yxfer = FI.apply_xfer(skymap,tab,pixsize)
+
+    return yxfer
+
+def lightweight_simobs_A10(z,M500,ptgs=[[180,45.0]],sizes=[3.5],times=[10.0],offsets=[1.5],
+                           center=[180,45.0],xsize=12.0,ysize=12.0,pixsize=2.0,Dist=False,
+                           fwhm=9.0,conv2uK=False,verbose=False):
+
+    sig2fwhm       = np.sqrt(8.0*np.log(2.0)) 
+    pix_sigma      = fwhm/(pixsize*sig2fwhm)
+    ymap           = make_A10Map(M500,z,pixsize=pixsize,Dist=Dist)
+    mymap          = smooth_by_M2_beam(ymap,pixsize=pixsize)
+    nx,ny          = mymap.shape
+    SkyHDU         = MRM.make_template_hdul(nx,ny,center,pixsize)
+    SkyHDU[0].data = mymap*1.0
+    Skyhdr         = SkyHDU[0].header
+    SkyCoadd       = MRM.make_template_hdul(nx,ny,center,pixsize)
+    MRM.WTF()
+
+    SkyCoadd       = MRM.Make_ImgWtmap_HDU(SkyCoadd,np.zeros((nx,ny)),np.zeros((nx,ny)))
+
+    SkyMaps        = []
+    SkyWtmap       = MRM.make_template_hdul(nx,ny,center,pixsize)
+    
+    for si,(p,s,t,o) in enumerate(zip(ptgs,sizes,times,offsets)):
+
+        wtmap          = np.zeros(mymap.shape)
+        if o > 0:
+            degoff       = o/60.0 # Offset in degrees
+            cosdec       = np.cos(p[1]*np.pi/180.0)
+            npix         = int(np.round((s*60*2)/pixsize))
+            for i in range(4):
+                wtmap        = np.zeros(mymap.shape)
+                newx         = p[0] + np.cos(np.pi*i/2)*degoff/cosdec
+                newy         = p[1] + np.sin(np.pi*i/2)*degoff
+                myptg        = [newx,newy]
+                if verbose:
+                    print(myptg)
+                TemplateHDU  = MRM.make_template_hdul(npix,npix,myptg,pixsize)
+                ptghdr       = TemplateHDU[0].header
+                ycutout,fp0  = MRM.reproject_fillzeros(SkyHDU,ptghdr)
+                wtmap        = MRM.add_to_wtmap(wtmap,Skyhdr,myptg,s,t/4.0,offset=0) # Need to fix
+                TemplateHDU[0].data = lightweight_filter_ptg(ycutout,s,pixsize)
+                Sky_yxfer,fp = MRM.reproject_fillzeros(TemplateHDU,Skyhdr)
+                SkyMap       = MRM.Make_ImgWtmap_HDU(SkyWtmap,Sky_yxfer,wtmap)
+                SkyMaps.append(SkyMap)
+                SkyCoadd     = MRM.coaddimg_noRP(SkyCoadd,SkyMap)
+        else:
+            TemplateHDU  = MRM.make_template_hdul(npix,npix,p,pixsize)
+            ptghdr       = TemplateHDU[0].header
+            ycutout,fp0  = MRM.reproject_fillzeros(SkyHDU,ptghdr)
+            wtmap        = MRM.add_to_wtmap(wtmap,Skyhdr,p,s,t,offset=o) # Need to fix
+            maxwt        = np.max(wtmap)
+            minrms       = 1.0/np.sqrt(maxwt)
+            TemplateHDU[0].data = lightweight_filter_ptg(ycutout,s,pixsize)
+            Sky_yxfer,fp = MRM.reproject_fillzeros(TemplateHDU,Skyhdr)
+            SkyMap       = MRM.Make_ImgWtmap_HDU(SkyWtmap,Sky_yxfer,wtmap)
+            SkyMaps.append(SkyMap)
+            SkyCoadd     = MRM.coaddimg_noRP(SkyCoadd,SkyMap)
+
+    myFactor         =  -3.3*1e6 if conv2uK else 1.0
+    SkySmooth        =  filters.gaussian_filter(SkyCoadd[0].data,pix_sigma) * myFactor
+    SkyObs           =  SkyCoadd[0].data*1.0
+    SkyCoadd[0].data =  SkyObs*myFactor
+    SSP              =  fits.PrimaryHDU(SkySmooth,header=SkyCoadd[0].header)
+    SSS              =  fits.ImageHDU(SkyCoadd[1].data,header=SkyCoadd[0].header)
+    SkySmHDU         =  fits.HDUList([SSP,SSS])
+    
+    return SkyCoadd, SkySmHDU,SkyHDU
+
+def get_SNR_map(hdul):
+
+    img    = hdul[0].data
+    wtmap  = hdul[1].data
+    rmsmap = MRM.conv_wtmap_torms(wtmap)
+    SNRmap = np.zeros(rmsmap.shape)
+    nzwts  = (wtmap > 0)
+    SNRmap[nzwts] = img[nzwts]/rmsmap[nzwts]
+
+    return SNRmap
+
+def get_pixarcsec(hdul):
+
+    wcs_inp = WCS(hdul[0].header)
+    pixsize = np.sqrt(np.abs(np.linalg.det(wcs_inp.pixel_scale_matrix))) * 3600.0 # in arcseconds
+
+    return pixsize
+
+def get_noise_realization(hdul,pink=True,alpha=2,knee=1.0/60.0,nkbin=100,fwhm=9.0):
+
+    #img          = hdul[0].data
+    wtmap        = hdul[1].data
+    rmsmap       = MRM.conv_wtmap_torms(wtmap)
+    zwts         = (wtmap == 0)
+    maxwts       = np.max(wtmap)
+    rmsmap[zwts] = 0
+    pixsize      = get_pixarcsec(hdul)
+
+    if pink:
+        noise = make_pinknoise_real(rmsmap,pixsize,alpha=alpha,knee=knee,nkbin=nkbin,fwhm=fwhm)
+    else:
+        noise_init = np.random.normal(size=rmsmap.shape)
+        sf         = get_smoothing_factor(fwhm=fwhm)
+        noise      = noise_init*sf*rmsmap
+
+    return noise
+
+def get_smoothing_factor(fwhm=9.0):
+
+    s2f         = np.sqrt(8.0*np.log(2.0))
+    sig         = fwhm/s2f
+    bv          = 2*np.pi*sig**2
+    sf          = np.sqrt(bv)
+
+    return sf
+
+def make_pinknoise_real(rmsmap,pixsize,alpha=2,knee=1.0/120.0,nkbin=100,fwhm=9.0):
+
+    nx,ny       = rmsmap.shape
+    k_img       = np.logspace(np.log10(1/(pixsize*nx)),np.log10(1.0/pixsize),nkbin)
+    p_init      = pixsize**2/np.pi       # I think...
+    pl_part     = (k_img/knee)**(-alpha)
+    pink        = (1 + pl_part)*p_init
+    cx,cy       = nx/2.0,ny/2.0
+    sf          = get_smoothing_factor(fwhm=fwhm)
+    
+    noise_init  = make_image(k_img,pink,nx=nx,ny=ny,cx=cx,cy=cy,pixsize=pixsize)
+    noise       = noise_init*rmsmap*sf
+
+    nzrms       = (rmsmap > 0)
+    #print(np.max(rmsmap),np.min(rmsmap[nzrms]))
+    #import pdb;pdb.set_trace()
+
+    return noise
+    
+def make_image(kbin,psbin,nx=1024,ny=1024,cx=512,cy=512,pixsize=1.0,verbose=False):
+
+    k,dkx,dky   = get_freqarr_2d(nx, ny, pixsize, pixsize)
+    kflat       = k.flatten()
+    gki         = (kflat > 0)
+    gk          = kflat[gki]
+
+    psout       = np.exp(np.interp(np.log(gk),np.log(kbin),np.log(psbin)))
+    psarr       = kflat*0
+    psarr[gki]  = psout
+    ps2d        = psarr.reshape(k.shape) * nx*ny
+
+    phase       = np.random.uniform(size=(nx,ny))*2*np.pi
+    newfft      = np.sqrt(ps2d) * np.exp(1j*phase)
+    newps       = np.abs(newfft*np.conjugate(newfft))
+    PTsum       = np.sum(newps/pixsize**2)/(nx*ny)
+    if verbose:
+        print("PTsum: ",PTsum)
+    img = np.real(np.fft.ifft2(newfft/pixsize))
+    img *= np.sqrt(2.0)
+    varsum = np.sum(img**2)
+    if verbose:
+        print("VARsum: ",varsum)
+        #import pdb;pdb.set_trace()
+
+    return img
+
+def get_freqarr_2d(nx, ny, psx, psy):
+    """
+       Compute frequency array for 2D FFT transform
+
+       Parameters
+       ----------
+       nx : integer
+            number of samples in the x direction
+       ny : integer
+            number of samples in the y direction
+       psx: integer
+            map pixel size in the x direction
+       psy: integer
+            map pixel size in the y direction
+
+       Returns
+       -------
+       k : float 2D numpy array
+           frequency vector
+    """
+    kx =  np.outer(np.fft.fftfreq(nx),np.zeros(ny).T+1.0)/psx
+    ky =  np.outer(np.zeros(nx).T+1.0,np.fft.fftfreq(ny))/psy
+    dkx = kx[1:][0]-kx[0:-1][0]
+    dky = ky[0][1:]-ky[0][0:-1]
+    k  =  np.sqrt(kx*kx + ky*ky)
+    #print('dkx, dky:', dkx[0], dky[0])
+    return k, dkx[0], dky[0]
+
+def get_cosmo_pars(z):
+
+    h         = cosmo.H(z)/cosmo.H(0) # aka E(z) sometimes...
+    rho_crit  = cosmo.critical_density(z)
+    h70       = (cosmo.H(0) / (70.0*u.km / u.s / u.Mpc))
+    d_ang = get_d_ang(z)
+
+    iv      = h.value**(-1./3)*d_ang.to('Mpc').value
+
+    cosmo_pars={"hofz":h,"d_ang":d_ang,"d_a":d_ang.to('kpc').value,"rho_crit":rho_crit,
+                "h70":h70,"iv":iv,"z":z}
+
+    return cosmo_pars
+    
+def rMP500_from_y500(yinteg,cosmo_pars,ySZ=True,ySph=True,YMrel=defaultYM,dopause=False):
+    """
+    Provide h and d_a as scalars:
+
+    h        - little h (the one that changes with z)
+    d_a      - angular distance, in Mpc, but just a value (not a quantity)
+    rho_crit - has units of density!!!
+
+    """
+
+    h        = cosmo_pars['hofz']
+    d_a      = cosmo_pars['d_a']/1000.0
+    rho_crit = cosmo_pars['rho_crit']
+    E        = h*1.0
+    h70      = cosmo_pars['h70']
+
+    ycyl    = not ySph
+    AAA,BBB = get_AAA_BBB(YMrel,500,ycyl=ycyl)
+    M500_i  = m_delta_from_ydelta(yinteg,cosmo_pars,delta=500,ycyl=ycyl,YMrel=YMrel,h70=h70)*u.Msun
+    R500_i  = (3 * M500_i/(4 * np.pi  * 500.0 * rho_crit))**(1/3.)
+    Mpc     = R500_i.decompose()
+    Mpc     = Mpc.to('Mpc')
+    r500    = (Mpc.value / d_a)
+
+    #P500 = (1.65 * 10**-3) * ((E)**(8./3)) * ((
+    #    M500_i * h70)/ ((3*10**14) * const.M_sun)
+    #    )**(2./3) * h70**2 * u.keV / u.cm**3
+    P500 = (1.65 * 10**-3) * ((E)**(8./3)) * ((
+        M500_i * h70)/ ((3*10**14 * h70**(-1)) * const.M_sun)
+        )**(2./3+0.11) * h70**2 * u.keV / u.cm**3
+
+    #logy  = np.log10(lside)
+    if ySZ == True:
+        iv      = h**(-1./3)*d_a
+        lside   = iv**2
+    else:
+        lside   = 1.0
+
+    logy  = np.log10(lside*yinteg)
+    msys = get_YM_sys_err(logy,YMrel,delta=500,ySph=ySph,h70=h70)
+    
+    #print(msys)
+    if dopause:
+        import pdb;pdb.set_trace()
+    
+    return r500, M500_i, P500, msys
+
+def m_delta_from_ydelta(y_delta,cosmo_pars,delta=500,ycyl=False,YMrel=defaultYM,h70=1.0):
+    """
+    Basically just a repository of Y-M relations.
+    
+    """
+    h        = cosmo_pars['hofz']
+    d_a      = cosmo_pars['d_a']/1000.0
+    iv       = h**(-1./3)*d_a
+
+    myYdelta = y_delta * (iv**2)
+
+    #print(YMrel)
+    AAA,BBB = get_AAA_BBB(YMrel,delta,ycyl=ycyl,h70=h70)
+
+    m_delta = ( myYdelta.value / 10**BBB )**(1./AAA)
+
+    return m_delta
+
+def get_YM_sys_err(logy,YMrel,delta=500,ySph=True,h70=1.0):
+
+    #if hasattr(logy,'__len__'):
+    #    raise AttributeError
+    
+    if delta == 500:
+        if YMrel == 'A10':
+            pivot = 3e14; Jofx  = 0.6145 if ySph else 0.7398
+            Norm  = 2.925e-5 * Jofx * h70**(-1); PL = 1.78
+            #t1   = ((logy - 1)/PL )*0.024
+            t1   = 0.024 / PL
+            t2   = ((np.log10(Norm) - logy)/PL**2)*0.08
+            xer  = np.sqrt(t1**2 + t2**2) * np.log(10)
+            #import pdb;pdb.set_trace()
+        elif YMrel == 'A11':
+            t1   = 0.29 # Fixed slope
+            t2   = 0.1
+            xer  = np.sqrt(t1**2 + t2**2) * np.log(10)
+            print(xer)
+        elif YMrel == 'M12':
+            trm1   = np.array([1.0,logy + 5.0])
+            #trm1   = np.array([1.0,5.0])
+            #t1   = np.array([0.367,0.44])
+            tcov = np.array([[0.098**2,-0.012],[-0.012,0.12**2]])
+            #tcov = np.array([[0.098**2,-(0.012**2)],[-(0.012**2),0.12**2]])
+            #tcov = np.array([[0.098**2,0],[0,0.12**2]])
+            t2   = np.abs(np.matmul(trm1,np.matmul(tcov,trm1)))
+            xer  = np.sqrt(t2) * np.log(10)
+            print(xer)
+            raise Exception
+        elif YMrel == 'M12-SS':
+            t1   = 0.0 # Fixed slope
+            t2   = 0.036
+            xer  = np.sqrt(t1**2 + t2**2) * np.log(10)
+            print(xer)
+        elif YMrel == 'P14':
+            t1   = 0.06
+            t2   = 0.079
+            xer  = np.sqrt(t1**2 + t2**2) * np.log(10)
+            print(xer)
+        elif YMrel == 'P17':
+            Norm = -4.305; PL = 1.685
+            t1   = 0.009 / PL
+            t2   = ((Norm - logy)/PL**2)*0.013
+            xer  = np.sqrt(t1**2 + t2**2) * np.log(10)
+            #xer = 0.104
+        elif YMrel == 'H20':
+            pivot = 3e14; 
+            Norm  = 10**(-4.739); PL = 1.79
+            #t1   = ((logy - 1)/PL )*0.024
+            t1   = 0.003 / PL
+            t2   = ((np.log10(Norm) - logy)/PL**2)*0.015
+            xer  = np.sqrt(t1**2 + t2**2) * np.log(10)
+        else:
+            print('No match!')
+            import pdb;pdb.set_trace()
+    elif delta == 2500:
+        if YMrel == 'A10':
+            #LogNorm = -28.13; PL = 1.637
+            #t1   = 0.88 / PL 
+            #t2   = ((logy - LogNorm)/PL**2)*0.062
+            #xer  = np.sqrt(t1**2 + t2**2) * np.log(10)
+            xer  = np.log(1 + 0.23)
+        elif YMrel == 'A11':
+            t1   = 0.29 # NOT CORRECT! TAKEN FROM DELTA=500!!!
+            t2   = 0.1  # NOT CORRECT! TAKEN FROM DELTA=500!!!
+            xer  = np.sqrt(t1**2 + t2**2) * np.log(10)
+            print(xer)
+        elif YMrel == 'M12':
+            trm1   = np.array([1.0,logy+5])
+            #trm1   = np.array([1.0,5.0])
+            #t1   = np.array([0.367,0.44])
+            #tcov = np.array([[0.063**2,-0.008],[-0.008,0.14**2]])
+            tcov = np.array([[0.063**2,-(0.008**2)],[-(0.008**2),0.14**2]])
+            #tcov = np.array([[0.098**2,0],[0,0.12**2]])
+            t2   = np.abs(np.matmul(trm1,np.matmul(tcov,trm1)))
+            xer  = np.sqrt(t2) * np.log(10)
+            print(xer)
+            raise Exception
+        elif YMrel == 'M12-SS':
+            t1   = 0.0 # Fixed slope
+            t2   = 0.033
+            xer  = np.sqrt(t1**2 + t2**2) * np.log(10)
+            print(xer)
+        elif YMrel == 'P14':
+            t1   = 0.06  ### M500 numbers
+            t2   = 0.079
+            xer  = np.sqrt(t1**2 + t2**2) * np.log(10)
+            print(xer)
+        elif YMrel == 'P17':
+            Norm = -4.5855; PL = 1.755
+            t1   = 0.014 / PL
+            t2   = ((Norm - logy)/PL**2)*0.020
+            xer  = np.sqrt(t1**2 + t2**2) * np.log(10)
+            #xer = 0.104
+        elif YMrel == 'H20':
+            xer  = np.log(1 + 0.23) ## B/C why not
+        else:
+            print('No match!')
+            import pdb;pdb.set_trace()
+    else:
+        print('No match for delta!')
+        import pdb;pdb.set_trace()
+
+    return xer
+        
+def r2m_delta(radius,z,delta=500):
+
+    rho_crit = cosmo.critical_density(z)
+    M_delta = 4 * np.pi / 3 * (radius*u.kpc)**3 * delta * rho_crit
+    M_delta = M_delta.to('M_sun').value
+
+    return M_delta
+
+def m2r_delta(mass,z,delta=500):
+
+    rho_crit = cosmo.critical_density(z)
+    M_delta = mass * u.Msun   # In solar masses
+    R_delta = (3 * M_delta/(4 * np.pi  * delta * rho_crit))**(1/3.)
+    R_delta = R_delta.to('kpc').value
+
+    return R_delta
+

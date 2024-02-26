@@ -17,10 +17,18 @@ def get_rms_cmap():
     
     return mycmap
 
-def plot_rms_general(hdul,rmsmap,savefile,vmin=18,vmax=318,myfs=15,nscans=None,
-                     prntinfo=True,cmark=True,ggmIsImg=False,tlo=True,
+def conv_wtmap_torms(wtmap):
+
+    gi         = (wtmap > 0)
+    rmsmap     = np.zeros(wtmap.shape)
+    rmsmap[gi] = 1.0/np.sqrt(wtmap[gi])
+
+    return rmsmap
+
+def plot_rms_general(hdul,savefile,vmin=18,vmax=318,myfs=15,rmsmap=None,nscans=None,
+                     prntinfo=True,cmark=True,ggmIsImg=False,tlo=True,wtcut=0.1,
                      cra=0,cdec=0,ggm=False,ggmCut=0.05,cc='k',ncnts=0,title=None,
-                     tsource=0,R500=0,r5col="c",zoom=1,noaxes=False):
+                     tsource=0,R500=0,r5col="c",zoom=1,noaxes=False,medwt=1.0):
 
     #norm=colors.Normalize(vmin=vmin, vmax=vmax)
     #norm=colors.LogNorm(vmin=vmin, vmax=vmax)
@@ -35,6 +43,12 @@ def plot_rms_general(hdul,rmsmap,savefile,vmin=18,vmax=318,myfs=15,nscans=None,
 
     img = hdul[0].data
     hdr = hdul[0].header
+    if rmsmap is None:
+        wtmap  = hdul[1].data
+        rmsmap = conv_wtmap_torms(wtmap)    # Convert to microK
+        nzwts  = (wtmap > 0)
+        medwt  = np.median(wtmap[nzwts])
+        
     w   = WCS(hdr)
     pixsize = np.sqrt(np.abs(np.linalg.det(w.pixel_scale_matrix))) * 3600.0 # in arcseconds
 
@@ -47,6 +61,9 @@ def plot_rms_general(hdul,rmsmap,savefile,vmin=18,vmax=318,myfs=15,nscans=None,
     else:
         ax = myfig.add_subplot(1,1,1, projection=w)
     
+    gi = (rmsmap > 0)
+    minrms = np.min(rmsmap[gi])
+
     if ggm:
         ggmImg = scipy.ndimage.gaussian_gradient_magnitude(img*1e6,2.0)
         #im     = ax.imshow(ggmImg,cmap=mycmap)
@@ -57,6 +74,16 @@ def plot_rms_general(hdul,rmsmap,savefile,vmin=18,vmax=318,myfs=15,nscans=None,
             clvls  = np.logspace(np.log10(ggmStd*3),np.log10(ggmMax),ncnts)
         else:
             clvls  = np.arange(ggmStd*3,ggmMax,ggmStd)
+    else:
+        if ncnts > 0:
+            maxval = np.max(-1*img)
+            #clvls  = -np.flip(np.logspace(np.log10(minrms),np.log10(maxval),ncnts))
+            clvls  = np.arange(2,2+ncnts)*minrms
+            ax.contour(-img,clvls,linestyles='--',colors=cc)
+            #print("Tried to plot contours: ",clvls)
+            #print(maxval)
+            #import pdb;pdb.set_trace()
+
 
     whitemap = np.ones(rmsmap.shape)*vmax + 1
     im0 = ax.imshow(whitemap,norm=norm,cmap=mycmap)
@@ -65,8 +92,7 @@ def plot_rms_general(hdul,rmsmap,savefile,vmin=18,vmax=318,myfs=15,nscans=None,
         
     ax.set_xlabel("RA (J2000)",fontsize=myfs)
     ax.set_ylabel("Dec (J2000)",fontsize=myfs)
-    gi = (rmsmap > 0)
-    minrms = np.min(rmsmap[gi])
+
     xlims = ax.get_xlim()
     ylims = ax.get_ylim()
     dx    = xlims[1] - xlims[0]
@@ -90,7 +116,7 @@ def plot_rms_general(hdul,rmsmap,savefile,vmin=18,vmax=318,myfs=15,nscans=None,
         truncate_par = 10.0 #do not user lower than 7-10, larger means much slower code
         mode_BC = 'constant' 
         alphas = scipy.ndimage.filters.gaussian_filter(alphas , txthght/10.0,truncate=truncate_par, mode=mode_BC)
-    print(alphas.shape,txthght,ypos,yos,xpos,xos,txtwdth1,txtwdth2)
+    #print(alphas.shape,txthght,ypos,yos,xpos,xos,txtwdth1,txtwdth2)
     #import pdb;pdb.set_trace()
     if ggmIsImg:
         im = ax.imshow(ggmImg,cmap=mycmap)
@@ -111,7 +137,7 @@ def plot_rms_general(hdul,rmsmap,savefile,vmin=18,vmax=318,myfs=15,nscans=None,
     #    ax_zoom(zoom,ax)
             
     if prntinfo:
-        xpos = xlims[1] - dx*myfs/40
+        xpos = xlims[1] - dx*myfs/30
         ypos = ylims[0] + dy*0.03
         ax.text(xpos,ypos,"Min. RMS: "+"{:.1f}".format(minrms),fontsize=myfs)
         if tsource > 0:
@@ -134,9 +160,6 @@ def plot_rms_general(hdul,rmsmap,savefile,vmin=18,vmax=318,myfs=15,nscans=None,
 
     if cmark:
         mark_radec(ax,hdr,cra,cdec)
-    #else:
-    #    mark_center_a399(ax,img,hdr)
-    #cent = [cx,cy] # Cluster center
 
     if prntinfo and not nscans is None:
         nsint = [int(nscan) for nscan in nscans]
@@ -204,53 +227,12 @@ def plot_rms(hdul,rmsmap,savefile,vmin=18,vmax=318,myfs=15,nscans=None,
     #mycb.ax.set_xticklabels(['20','30','40','100','200'])
     mycb.ax.tick_params(labelsize=myfs)
 
-    if cmark:
-        mark_center_shock(ax,img,hdr)
-    else:
-        mark_center_a399(ax,img,hdr)
-    cent = [340.6766932,53.05341666] # Cluster center
     if prntinfo and not nscans is None:
         nsint = [int(nscan) for nscan in nscans]
         for i,nsi in enumerate(nsint):
             ax.text(5+i*100,5,repr(nsi),fontsize=myfs)
         
     myfig.savefig(savefile,format='png')
-
-def mark_center_a399(ax,img,hdr):
-
-    a399 = (44.48500,13.01638888) # A399 centroid, degrees
-    xymap = make_xymap(img,hdr,a399[0],a399[1])
-    pixs  = get_pixs(hdr)
-    xx,yy = xymap
-    ax.plot(-xx[0,0]*60/pixs,-yy[0,0]*60/pixs,'xk',ms=10,mew=3)
-
-    
-def mark_center_shock(ax,img,hdr,pltslices=False,nocen=False):
-
-    p3   = (340.6766932,53.05341666)  # RA, dec in degrees
-    xymap = make_xymap(img,hdr,p3[0],p3[1])
-    #rmap  = make_rmap(xymap)
-    #tmap  = np.arctan2(xymap[1],xymap[0])
-    t1    = 80
-    t2    = 145
-    pixs  = get_pixs(hdr)
-    tarr  = np.arange(t1,t2)*np.pi/180
-    xx,yy = xymap
-    shk_x = (np.cos(tarr)*470 - 60*xx[0,0])/pixs
-    shk_y = (np.sin(tarr)*470 - 60*yy[0,0])/pixs
-
-    ishkrad = 4.7*60
-    ishk_x = (np.cos(tarr)*ishkrad - 60*xx[0,0])/pixs
-    ishk_y = (np.sin(tarr)*ishkrad - 60*yy[0,0])/pixs
-    
-    #print(shk_x,shk_y)
-    #import pdb;pdb.set_trace()
-    if not pltslices:
-        ax.plot(shk_x,shk_y,'k',lw=2)
-    ax.plot(ishk_x,ishk_y,'--k',lw=2)
-    if not nocen:
-        ax.plot(-xx[0,0]*60/pixs,-yy[0,0]*60/pixs,'xk',ms=10,mew=3)
-
     
 def get_scanlen(scansize):
 
@@ -259,25 +241,28 @@ def get_scanlen(scansize):
 
     return t_minutes
 
-def get_rmsprof_from_s(radii,s):
+def get_rmsprof_from_s(radii,s,cf=1.4):
+    """
+    Mapping speeds aren't quite correct as is; correction factor, cf is correct.
+    """
 
     pars = get_mapspd_pars(s)
     rawrms = pars[0] + pars[1]*radii + pars[3]*np.exp(radii/pars[2])
-    rms    = np.sqrt(2)*rawrms
+    rms    =cf*rawrms
     
     return rms
 
-def get_rmsprofile(radii,pars):
+def get_rmsprofile(radii,pars,cf=1.4):
     #P[0] + P[1] + P[3]*exp(R/P[2])
     rawrms = pars[0] + pars[1]*radii + pars[3]*np.exp(radii/pars[2])
-    rms    = np.sqrt(2)*rawrms
+    rms    =cf*rawrms
     
     return rms
        
 def get_mapwts(radii,pars):
     #P[0] + P[1] + P[3]*exp(R/P[2])
     #rawrms = pars[0] + pars[1]*radii + pars[3]*np.exp(radii/pars[2])
-    #rms    = np.sqrt(2)*rawrms
+    #rms    =cf*rawrms
     rms = get_rmsprofile(radii,pars)
     wts = 1.0/rms**2
 
@@ -353,7 +338,7 @@ def make_xymap(img,hdr,ra,dec):
     w     = WCS(hdr)           
     pixs  = get_pixs(hdr)/60.0 # In arcminutes
     x0,y0 = w.wcs_world2pix(ra,dec,0)
-    print(pixs,x0,y0)
+    #print(pixs,x0,y0)
     #pdb.set_trace()
     xsz, ysz = img.shape
     xar = np.outer(np.arange(xsz),np.zeros(ysz)+1.0)
@@ -394,7 +379,7 @@ def reproject_fillzeros(hduin,hdrout,hdu_in=0):
 
     return imgout, fpout
          
-def make_rms_map(hdul,ptgs,szs,time,offset=1.5):
+def make_rms_map(hdul,ptgs,szs,time,offsets=[1.5]):
     
     img  = hdul[0].data
     hdr  = hdul[0].header
@@ -411,26 +396,19 @@ def make_rms_map(hdul,ptgs,szs,time,offset=1.5):
 
     wtmap  = np.zeros(img.shape)
     rmsmap = np.zeros(img.shape)
-    for p,s,t in zip(ptgs,szs,time):
-        #pars = get_mapspd_pars(s)
-        #xymap = make_xymap(img,hdr,p[0],p[1])
-        #rmap  = make_rmap(xymap)
-        #edge  = (s+2.1) # arcseconds
-        #gi = (rmap < edge)
-        #wts = get_mapwts(rmap[gi],pars)
-        #wtmap[gi] = wtmap[gi]+wts*t
-        wtmap = add_to_wtmap(img,hdr,wtmap,p,s,t,offset=offset)
+    for p,s,t,o in zip(ptgs,szs,time,offsets):
+        wtmap = add_to_wtmap(wtmap,hdr,p,s,t,offset=o)
     gi = (wtmap > 0)
     rmsmap[gi] = 1.0/np.sqrt(wtmap[gi])
 
     return rmsmap, ns
 
-def add_to_wtmap(img,hdr,wtmap,p,s,t,offset=1.5):
+def add_to_wtmap(wtmap,hdr,p,s,t,offset=1.5):
 
     degoff = offset/60.0 # Offset in degrees
     if s>0:
         pars = get_mapspd_pars(s)
-        xymap = make_xymap(img,hdr,p[0],p[1])
+        xymap = make_xymap(wtmap,hdr,p[0],p[1])
         rmap  = make_rmap(xymap)
         edge  = (s+2.1) # arcseconds
         gi = (rmap < edge)
@@ -438,17 +416,26 @@ def add_to_wtmap(img,hdr,wtmap,p,s,t,offset=1.5):
         wtmap[gi] = wtmap[gi]+wts*t
     else:
         pars   = get_mapspd_pars(-s)
-        cosdec = np.cos(p[1]*np.pi/180.0) 
+        cosdec = np.cos(p[1]*np.pi/180.0)
+        #if offset > 0:
         for i in range(4):
             newx = p[0] + np.cos(np.pi*i/2)*degoff/cosdec
             newy = p[1] + np.sin(np.pi*i/2)*degoff
-            xymap = make_xymap(img,hdr,newx,newy)
+            xymap = make_xymap(wtmap,hdr,newx,newy)
             rmap  = make_rmap(xymap) # arcminutes
             edge  = (2.1-s) # arcminutes
             gi = (rmap < edge)
             wts = get_mapwts(rmap[gi],pars)
             wtmap[gi] = wtmap[gi]+wts*t/4.0
-        
+        #else:
+        #    xymap = make_xymap(wtmap,hdr,p[0],p[1])
+        #    rmap  = make_rmap(xymap) # arcminutes
+        #    edge  = (2.1-s) # arcminutes
+        #    gi = (rmap < edge)
+        #    wts = get_mapwts(rmap[gi],pars)
+        #    wtmap[gi] = wtmap[gi]+wts*t
+
+            
     return wtmap
 
 def ax_zoom(zoom,ax):
@@ -473,6 +460,7 @@ def make_template_hdul(nx,ny,cntr,pixsize,cx=None,cy=None):
     w.wcs.crpix = [cx,cy]
     w.wcs.cdelt = np.array([-pixsize/3600.0,pixsize/3600.0])
     w.wcs.crval = [cntr[0], cntr[1]]
+    #w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
     w.wcs.ctype = ["RA---SIN", "DEC--SIN"]
     hdr = w.to_header()
 
@@ -490,7 +478,6 @@ def calc_RMS_profile(hdul,rmsmap,Cntr,rmax=None):
     xmap                   = xymap[0]
     #pixs                   = np.median(xmap[1:,0]-xmap[:-1,0]) # in arcminutes
     pixs                   = np.median(xmap[0,1:]-xmap[0,:-1]) # in arcminutes
-    print(pixs)
     rmap                   = make_rmap(xymap) # arcminutes
     rbin,ybin,yerr,ycnts   = bin_two2Ds(rmap,rmsmap,binsize=pixs*2.0)
 
@@ -568,3 +555,44 @@ def calculate_RMS_within(Rads,RMSprof,Rmaxes=[2,3,4]):
         RMSwi.append(np.sqrt(MyVars[-1]))
 
     return RMSwi
+
+def WTF():
+
+    print("hi")
+
+def Make_ImgWtmap_HDU(HDUTemplate,Img,Wtmap):
+
+    Phdu        = HDUTemplate[0]
+    Phdu.data   = Img*1.0
+    Shdu        = fits.ImageHDU(Wtmap,header=Phdu.header)
+    ImgWtsHDUs  = fits.HDUList([Phdu,Shdu])
+
+    return ImgWtsHDUs
+
+def coaddimg_noRP(hdu1,hdu2):
+
+    """
+    This version assumes no reprojection. That is, you had better have the same astrometry between the two!
+    A more general version to be written...
+    """
+
+    img1 = hdu1[0].data *1.0
+    wtm1 = hdu1[1].data *1.0
+    img2 = hdu2[0].data *1.0
+    wtm2 = hdu2[1].data *1.0
+
+    #c1   = np.any(np.isnan(img1))
+    #c2   = np.any(np.isnan(wtm1))
+    #c3   = np.any(np.isnan(img2))
+    #c4   = np.any(np.isnan(wtm2))
+    #print(c1,c2,c3,c4)
+   
+    NewWtm     = wtm1 + wtm2
+    NewImg     = (img1*wtm1 + img2*wtm2)/NewWtm
+    bi         = (NewWtm == 0)
+    NewImg[bi] = 0.0
+
+    hdu1[0].data = NewImg *1.0
+    hdu1[1].data = NewWtm *1.0
+
+    return hdu1

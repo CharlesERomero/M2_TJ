@@ -5,6 +5,8 @@ import M2_ProposalTools.MakeRMSmap as MRM
 import numpy as np
 import os
 import astropy.units as u
+import M2_ProposalTools.ModelFitting as MF
+from astropy.io import fits                # To read/write fits
 
 def test_locate_xfer_files():
 
@@ -38,10 +40,10 @@ def test_RMS_generation():
     Ptgs    = [Center]                          # Pointings should be a list of (RA,Dec) array-like values.
     sizes   = [-3.5]                            # Let's try offset scans! Here, 3.5' scans, offset
     times   = [10.0]                            # 10 hours
-    offset  = 1.5                               # 1.5 arcminute offset (the default, but we may change it)
+    offsets = [1.5]                               # 1.5 arcminute offset (the default, but we may change it)
 
     TemplateHDU = MRM.make_template_hdul(nx,ny,Center,pixsize)
-    RMSmap,nscans = MRM.make_rms_map(TemplateHDU,Ptgs,sizes,times,offset=offset)
+    RMSmap,nscans = MRM.make_rms_map(TemplateHDU,Ptgs,sizes,times,offsets=offsets)
 
     nPixX,nPixY = RMSmap.shape
     c1          = (nx == nPixX)
@@ -59,3 +61,49 @@ def test_A10_generation():
     c2         = np.max(ymap) < 1e-2
     
     assert c1*c2
+
+def test_AlphaOmega(outdir="/home/data/MUSTANG2/SimulatedObservations/QuickAndDirty/"):
+
+    M5_14    = 6.0
+    M500     = M5_14*1e14*u.M_sun
+    z        = 0.5
+    pixsize  = 4.0
+    
+    times    = [10,10]
+    ptgs     = [[180,45.0],[180,45.0]]
+    sizes    = [3.5,3.5]
+    offsets  = [1.5,0]
+    
+    FilterHDU,SmoothHDU,SkyHDU = WH.lightweight_simobs_A10(z,M500,conv2uK=True,pixsize=pixsize,ptgs=ptgs,sizes=sizes,times=times,offsets=offsets,Dist=True)
+
+    pixstr = "{:.1f}".format(pixsize).replace(".","p")
+    zstr   = "{:.1f}".format(z).replace(".","z")
+    Mstr   = "{:.1f}".format(M5_14).replace(".","m")
+    sss    = ["{:.1f}".format(mysz).replace(".","s") for mysz in sizes]
+    sts    = ["{:.1f}".format(mytime).replace(".","h") for mytime in times]
+    ssstr  = "_".join(sss)
+    ststr  = "_".join(sts)
+    InputStr = "_".join([zstr,Mstr,ssstr,ststr,pixstr])
+
+    filename = "SimulatedObs_Unsmoothed_"+InputStr+".fits"
+    FilterHDU.writeto(outdir+filename,overwrite=True)
+    filename2 = "SimulatedObs_Smoothed_"+InputStr+".fits"
+    SmoothHDU.writeto(outdir+filename2,overwrite=True)
+    filename3 = "SimulatedSky_"+InputStr+".fits"
+    SkyHDU.writeto(outdir+filename3,overwrite=True)
+
+    SkyHDU[0].data *= -3.3e6 # Run once 
+
+    SBfn = "SimulatedObs_SBprofiles_"+InputStr+".png"
+    MF.plot_SB_profiles(FilterHDU,SkyHDU,outdir,SBfn,solns=None,bv=120.0)
+
+    pngname  = "SimulatedObservations_"+InputStr+"_RMSimage.png"
+    vmin     = 15.0  # uK
+    vmax     = 420.0 # uK
+    MRM.plot_rms_general(SmoothHDU,outdir+pngname,ncnts=5,vmin=vmin,vmax=vmax)
+
+    inputHDU = fits.open(outdir+filename)
+    nsteps   = 100
+    nsstr    = "_"+repr(nsteps)+"steps"
+    outbase = "NP_fit_"+InputStr+nsstr+"_corner.png"
+    MF.fit_spherical_model(z,M500,inputHDU,outdir=outdir,nsteps=nsteps,outbase=outbase)   # 100 for testing purposes
