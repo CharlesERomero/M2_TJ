@@ -98,7 +98,7 @@ def test_AlphaOmega():
     SkyHDU[0].data *= -3.3e6 # Run once 
 
     SBfn = "SimulatedObs_SBprofiles_"+InputStr+".png"
-    MF.plot_SB_profiles(FilterHDU,SkyHDU,outdir,SBfn,solns=None,bv=120.0)
+    MF.plot_SB_profiles(FilterHDU,SkyHDU,outdir,SBfn)
 
     pngname  = "SimulatedObservations_"+InputStr+"_RMSimage.png"
     vmin     = 15.0  # uK

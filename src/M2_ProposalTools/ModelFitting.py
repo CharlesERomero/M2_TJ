@@ -1058,7 +1058,7 @@ def prntPeak(yProf,inHDU,isUK=True,Tag="SimObs-- "):
 
     print(Tag+"Peak in binned profile: ",ProfPeak," ; peak in map: ",MapPeak)
 
-def plot_SB_profiles(SimObs,SimSky,outdir,filename,prntPk=True,isUK=True):
+def plot_SB_profiles(SimObs,SimSky,outdir,filename,prntPk=True,isUK=True,xmin=0,xmax=2.0):
 
     """
     A routine to plot a simulated sky versus simulated observation, radial profiles.

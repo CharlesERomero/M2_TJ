@@ -9,7 +9,7 @@ import scipy.ndimage
 
 def get_rms_cmap():
 
-    mycmap=cm.get_cmap('tab20b')
+    mycmap=cm.get_cmap('tab20b').copy()
     mydcm=cm.get_cmap('tab20b',256)
     newcolors = mydcm(np.linspace(0,1,256))
     mycmap.set_under('w')
@@ -26,7 +26,7 @@ def conv_wtmap_torms(wtmap):
     return rmsmap
 
 def plot_rms_general(hdul,savefile,vmin=18,vmax=318,myfs=15,rmsmap=None,nscans=None,
-                     prntinfo=True,cmark=True,ggmIsImg=False,tlo=True,wtcut=0.1,
+                     prntinfo=False,cmark=True,ggmIsImg=False,tlo=True,wtcut=0.1,
                      cra=0,cdec=0,ggm=False,ggmCut=0.05,cc='k',ncnts=0,title=None,
                      tsource=0,R500=0,r5col="c",zoom=1,noaxes=False,medwt=1.0):
 
@@ -173,7 +173,7 @@ def plot_rms_general(hdul,savefile,vmin=18,vmax=318,myfs=15,rmsmap=None,nscans=N
         #myfig.subplots_adjust(left=0.01,bottom=0.01)
         #ax.subplot_adjust(right=0.1,left=0.01,bottom=0.01,top=0.01)
     myfig.savefig(savefile,format='png')
-    myfig.clf()
+    #myfig.clf()
 
 
 def mark_radec(ax,hdr,ra,dec):

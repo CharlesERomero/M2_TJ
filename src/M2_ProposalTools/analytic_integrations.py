@@ -99,13 +99,6 @@ def log_profile(args,r_bins,radii,alphas=[],rintmax=[],finite=False):
             mypres=epsnot*(myrad/rout)**(-alpha)
             rnot=rin
             yint = (rout/rin)**(2-alpha) - 1.0
-
-        if pause and rout != -1:
-            print("================= DEBUGGING INTERPOLATOR =============================")
-            print(rin,rout,alpha)
-            print("Vin, Vout: ",args[idx],args[idx+1])
-            print(mypres)
-
             
         presprof[myind]=mypres
         if aset == 0:
@@ -121,10 +114,6 @@ def log_profile(args,r_bins,radii,alphas=[],rintmax=[],finite=False):
             return presprof,alphas,ycyl
         # back to this placent
 
-
-    if pause:
-        import pdb;pdb.set_trace()
-        
     if badind > 0:
         alphas = np.delete(alphas,badind)
         
@@ -829,79 +818,78 @@ def shell_pl(epsnot,sindex,rmin,rmax,radarr,c=1.0,ff=1e-3,epsatrmin=0,
     NOTE: If RMIN = 0 and RMAX < 0, then this program will return 0.
     """
 
-##############################################################
-### OUTPUTS:
-#
-# PLINT     - PLINT is the integration along the z-axis (line of sight) for
-#             an ellipsoid (a sphere) where the "emissivity" is governed by
-#             a power law. The units are thus given as the units on EPSNOT
-#             times the units on RADARR (and therefore RMIN and RMAX).
-#
-#             It is then dependent on you to make the appropriate
-#             conversions to the units you would like.
-# 
-##############################################################
-### Perform some double-checks.
+    ##############################################################
+    ### OUTPUTS:
+    #
+    # PLINT     - PLINT is the integration along the z-axis (line of sight) for
+    #             an ellipsoid (a sphere) where the "emissivity" is governed by
+    #             a power law. The units are thus given as the units on EPSNOT
+    #             times the units on RADARR (and therefore RMIN and RMAX).
+    #
+    #             It is then dependent on you to make the appropriate
+    #             conversions to the units you would like.
+    # 
+    ##############################################################
+    ### Perform some double-checks.
 
-  if rmin < 0:
-    print('found rmin < 0; setting rmin equal to 0')
-    rmin = 0
+    if rmin < 0:
+        print('found rmin < 0; setting rmin equal to 0')
+        rmin = 0
 
-  rrmm = (radarr==np.amin(radarr))
-  if (radarr[rrmm] == 0) and (sindex > 0):
-    radarr[rrmm]=ff
+    rrmm = (radarr==np.amin(radarr))
+    if (radarr[rrmm] == 0) and (sindex > 0):
+        radarr[rrmm]=ff
 
-##############################################################
-### Determine the appropriate case (and an extra double check)
+    ##############################################################
+    ### Determine the appropriate case (and an extra double check)
 
-  if rmax < 0:
-      if rmin == 0:
-          scase=3
-      else:
-          scase=2
-          epsatrmin=1
-  else:
-      if rmin == 0:
-          scase=0
-      else:
-        if rmin < rmax:
-          scase=1
-          epsatrmin=1
+    if rmax < 0:
+        if rmin == 0:
+            scase=3
         else:
-          print('You made a mistake: rmin > rmax; sending to infty integration.')
-### If a mistake is possible, it will happen, eventually.
-          scase=3
+            scase=2
+            epsatrmin=1
+    else:
+        if rmin == 0:
+            scase=0
+        else:
+            if rmin < rmax:
+                scase=1
+                epsatrmin=1
+            else:
+                print('You made a mistake: rmin > rmax; sending to infty integration.')
+                ### If a mistake is possible, it will happen, eventually.
+                scase=3
 
-### Direct program to appropriate case:
-  shellcase = {0: plsphere, # You are integrating from r=0 to R (finite)
-               1: plshell,  # You are integrating from r=R_1 to R_2 (finite)
-               2: plsphole, # You are integrating from r=R (finite, >0) to infinity
-               3: plinfty,  # You are integrating from r=0 to infinity
-           }
+    ### Direct program to appropriate case:
+    shellcase = {0: plsphere, # You are integrating from r=0 to R (finite)
+                 1: plshell,  # You are integrating from r=R_1 to R_2 (finite)
+                 2: plsphole, # You are integrating from r=R (finite, >0) to infinity
+                 3: plinfty,  # You are integrating from r=0 to infinity
+                 }
 
-##############################################################
-### Redo some numbers to agree with hand-written calculations
+    ##############################################################
+    ### Redo some numbers to agree with hand-written calculations
 
-  p = sindex/2.0 # e(r) = e_0 * (r^2)^(-p) for this notation / program
+    p = sindex/2.0 # e(r) = e_0 * (r^2)^(-p) for this notation / program
 
-### In a way, I actually like having EPSNORM default to being defined at RMIN
-### (Easier to compare to hand-written calculations.
+    ### In a way, I actually like having EPSNORM default to being defined at RMIN
+    ### (Easier to compare to hand-written calculations.
 
+    if scase ==1 and narm == False:
+        epsnorm=epsnot*(rmax/rmin)**(sindex)
+    else:
+        epsnorm=epsnot
 
-  if scase ==1 and narm == False:
-      epsnorm=epsnot*(rmax/rmin)**(sindex)
-  else:
-      epsnorm=epsnot
-
-### Prefactors change a bit depending on integration method.
-### These are the only "pre"factors common to all (both) methods.
-  prefactors=epsnorm*c
-### Now integrate for the appropriate case
-  myintegration = shellcase[scase](p,rmin,rmax,radarr,tmax=tmax)
+    ### Prefactors change a bit depending on integration method.
+    ### These are the only "pre"factors common to all (both) methods.
+    prefactors=epsnorm*c
+    ### Now integrate for the appropriate case
+    myintegration = shellcase[scase](p,rmin,rmax,radarr,tmax=tmax)
   
-  answer = myintegration*prefactors  ## And get your answer!
+    answer = myintegration*prefactors  ## And get your answer!
   
-  return answer
+    return answer
 
 ##############################################################
 ##### Integration cases, as directed above.              #####
@@ -1090,17 +1078,17 @@ def myrincbeta(x,a,b):
     :param b: Nameless parameter?
     :type b: float
     """
-  if a < 0:
-      cbf=(sps.gamma(a)*sps.gamma(b))/sps.gamma(a+b)
-      res = (x**a * (1.0-x)**b) / (a * cbf)
-      #if np.any(np.isnan(res)):
-      #    import pdb;pdb.set_trace()
-      return myrincbeta(x,a+1.0,b) + res
-  else:
-#      cbf=(sps.gamma(a)*sps.gamma(b))/sps.gamma(a+b)
-      cbf=1.0 # sps.betainc is the regularized inc. beta fun.
-      res=(sps.betainc(a,b,x) / cbf)
-      return res
+    if a < 0:
+        cbf=(sps.gamma(a)*sps.gamma(b))/sps.gamma(a+b)
+        res = (x**a * (1.0-x)**b) / (a * cbf)
+        #if np.any(np.isnan(res)):
+        #    import pdb;pdb.set_trace()
+        return myrincbeta(x,a+1.0,b) + res
+    else:
+        #      cbf=(sps.gamma(a)*sps.gamma(b))/sps.gamma(a+b)
+        cbf=1.0 # sps.betainc is the regularized inc. beta fun.
+        res=(sps.betainc(a,b,x) / cbf)
+        return res
     
 def myredcosine(tmax,n):
     """
@@ -1116,18 +1104,18 @@ def myredcosine(tmax,n):
 
     """
 
-  if n < -2:
-      res=np.cos(tmax)**(n+1)*np.sin(tmax)/(n+1) 
-      return myredcosine(tmax,n+2)*(n+2)/(n+1) - res
-  else:
-      if n == 0:
-          res=tmax
-      if n == -1:
-          res=np.log(np.absolute(1.0/np.cos(tmax) + np.tan(tmax)) )
-      if n == -2:
-          res=np.tan(tmax) 
+    if n < -2:
+        res=np.cos(tmax)**(n+1)*np.sin(tmax)/(n+1) 
+        return myredcosine(tmax,n+2)*(n+2)/(n+1) - res
+    else:
+        if n == 0:
+            res=tmax
+        if n == -1:
+            res=np.log(np.absolute(1.0/np.cos(tmax) + np.tan(tmax)) )
+        if n == -2:
+            res=np.tan(tmax) 
 
-      return res
+    return res
 
 def ycyl_prep(Int_Pres,theta_range):
     """
