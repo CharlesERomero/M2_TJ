@@ -62,8 +62,11 @@ def test_A10_generation():
     
     assert c1*c2
 
-def test_AlphaOmega(outdir="/home/data/MUSTANG2/SimulatedObservations/QuickAndDirty/"):
+def test_AlphaOmega():
 
+
+    path    = os.path.abspath(FI.__file__)
+    outdir  = path.replace("FilterImages.py","")
     M5_14    = 6.0
     M500     = M5_14*1e14*u.M_sun
     z        = 0.5
