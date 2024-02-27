@@ -85,12 +85,12 @@ def test_AlphaOmega(outdir="/home/data/MUSTANG2/SimulatedObservations/QuickAndDi
     ststr  = "_".join(sts)
     InputStr = "_".join([zstr,Mstr,ssstr,ststr,pixstr])
 
-    filename = "SimulatedObs_Unsmoothed_"+InputStr+".fits"
-    FilterHDU.writeto(outdir+filename,overwrite=True)
-    filename2 = "SimulatedObs_Smoothed_"+InputStr+".fits"
-    SmoothHDU.writeto(outdir+filename2,overwrite=True)
-    filename3 = "SimulatedSky_"+InputStr+".fits"
-    SkyHDU.writeto(outdir+filename3,overwrite=True)
+    #filename = "SimulatedObs_Unsmoothed_"+InputStr+".fits"
+    #FilterHDU.writeto(outdir+filename,overwrite=True)
+    #filename2 = "SimulatedObs_Smoothed_"+InputStr+".fits"
+    #SmoothHDU.writeto(outdir+filename2,overwrite=True)
+    #filename3 = "SimulatedSky_"+InputStr+".fits"
+    #SkyHDU.writeto(outdir+filename3,overwrite=True)
 
     SkyHDU[0].data *= -3.3e6 # Run once 
 
@@ -102,7 +102,8 @@ def test_AlphaOmega(outdir="/home/data/MUSTANG2/SimulatedObservations/QuickAndDi
     vmax     = 420.0 # uK
     MRM.plot_rms_general(SmoothHDU,outdir+pngname,ncnts=5,vmin=vmin,vmax=vmax)
 
-    inputHDU = fits.open(outdir+filename)
+    #inputHDU = fits.open(outdir+filename)
+    inputHDU = FilterHDU.copy()
     nsteps   = 100
     nsstr    = "_"+repr(nsteps)+"steps"
     outbase = "NP_fit_"+InputStr+nsstr+"_corner.png"
