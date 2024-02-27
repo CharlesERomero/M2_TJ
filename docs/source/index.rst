@@ -16,5 +16,7 @@ Contents
 
 .. toctree::
 
+   intro
+   notebooks
    usage
    api

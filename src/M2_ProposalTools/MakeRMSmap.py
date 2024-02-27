@@ -166,8 +166,8 @@ def plot_rms_general(hdul,savefile,vmin=18,vmax=318,myfs=15,rmsmap=None,nscans=N
         for i,nsi in enumerate(nsint):
             ax.text(5+i*100,5,repr(nsi),fontsize=myfs)
 
-    if tlo:
-        print("I already did this")
+    #if tlo:
+        #print("I already did this")
         #myfig.tight_layout()
         #myfig.subplots_adjust(left=0.01,bottom=0.01,top=0.05)
         #myfig.subplots_adjust(left=0.01,bottom=0.01)

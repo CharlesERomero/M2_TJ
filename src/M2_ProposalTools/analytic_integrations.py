@@ -3,15 +3,23 @@ import astropy.units as u
 from scipy.interpolate import interp1d # numpy should be faster...
 import scipy.special as sps
 
-
-
-def log_profile(args,r_bins,radii,alphas=[],rintmax=[],pause=False,finite=False):
-    """
-    r_bins and radii must be in the same units.
+def log_profile(args,r_bins,radii,alphas=[],rintmax=[],finite=False):
+    """   
+    Performs logarithmic interpolation and extrapolation. This can easily be improved, but hasn't been the bottleneck.
     
-    This goes through and does the interpolation by hand.
-    I can totally use a quicker method...
-
+    r_bins and radii must be in the same units.
+    :param args: values
+    :type args: numpy.ndarray
+    :param r_bins: bin edges
+    :type r_bins: numpy.ndarray
+    :param radii: radial points onto which you will interpolate or extrapolate
+    :type radii: numpy.ndarray
+    :param alphas: If zeros or an empty list, this function will calculate power law index between bins.
+    :type alphas: array-like, optional
+    :param rintmax: If zeros or an empty list, integration extends to infinity. Default is [].
+    :type rintmax: array-like, optional
+    :param finite: Do not integrate to infinity; stop at last value in r_bins.
+    :type finite: bool
     """
 
     #r_uniqe = np.unique(r_bins)
@@ -40,9 +48,6 @@ def log_profile(args,r_bins,radii,alphas=[],rintmax=[],pause=False,finite=False)
     ycyl=0.0 # Y_500,cyl integration.
     ### Actually, I am not calculating Ycyl here!!! Stupid me. I could 
     ### calculate Ysph here though...
-    
-    #if pause:
-    #    import pdb;pdb.set_trace()
 
     badind = 0
     nfor = len(r_bins)-1 if finite else len(r_bins)
@@ -133,6 +138,10 @@ def binsky(args,r_bins,theta_range,theta,inalphas=[]):
     Returns a surface brightness map for a binned profile, slopes, and radial integrals.
     
     Parameters
+    :param args: values
+    :type args: numpy.ndarray
+    :param r_bins: bin edges
+    :type r_bins: numpy.ndarray
     __________
     args :  Pressure for each bin used
     Returns
@@ -151,7 +160,14 @@ def binsky(args,r_bins,theta_range,theta,inalphas=[]):
 
 def prep_SZ_binsky(pressure, temp_iso, geoparams=None):
     """
-    geoparams   :  [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
+    Small function, intended to do more (for relativistic corrections), but currently only allows for one ICM temperature.
+
+    :param pressure: array of electron pressures
+    :type pressure: array-like
+    :param temp_iso: isothermal temperature
+    :type temp_iso: float
+    :param geoparams: [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
+    :type geoparams: array-like
     """
     edensity = np.array(pressure) / temp_iso
     etemperature = np.array(pressure)*0 + temp_iso
@@ -165,31 +181,47 @@ def integrate_profiles(epressure, geoparams,r_bins,theta_range,inalphas=[],
                        array="2",fullSZcorr=False,SZtot=False,columnDen=False,Comptony=True,
                        instrument='MUSTANG2',negvals=None,tmax=0):
     """
-    Returns a surface brightness map for a binned profile fit, with far more generality than previously done.
+    Returns a Compton y profile for an input pressure profile.
     
     Parameters
     __________
-    density_proxy :  The electron density * boltzmann constant * kpc / m_e c**2
-                     Its units are such that the integral of (density_proxy*etemperature) over theta_range
-                     (itself in radians), results in the unitless Compton y parameter.
-    etemperature  :  The electron temperature (k_B * T), but again, without units within Python
-    geoparams     :  [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
-    r_bins        :  The (elliptical) bins, in radians, for the profile. 
-    theta_range   :  The range of angles for which to create a 1D profile (which can then be interpolated)
-    inalphas      :  Nothing to see here. Move along.
-    beta          :  Fraction of the speed of light of the cluster bulk (peculiar) motion.
-    betaz         :  Fraction of the speed of light of the cluster along the line of sight.
-    finint        :  Integrate out to last finite (defined) bin.
-    narm          :  Normalized at R_Min. This is important for integrating shells.
-    fixalpha      :  Fix alpha (to whatever inalpha is); useful for shocks.
-    strad         :  STrict RADii; if the pressure model has to obey strict placements of radii, use this!
-    array:        :  only used with NIKA2 data
-    fullSZcorr    :  integrate relativistic corrections along line of sight?
-    SZtot         :  total SZ signal... not really useful
-    columnDen     :  Set to true if you want to return the column density...?
-    Comptony      :  When set (by default), returns Comptony profile
-    instrument    :  MUSTANG-2 by default. Used in relativistic calculations.
-    negvals       :  Boolean array, the length of density_proxy.
+    :param epressure     :  Electron pressure in units such that its integral over theta_range
+                           (itself in radians), results in the unitless Compton y parameter.
+    :type epressure      : np.ndarray
+    :param geoparams     :  [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
+    :type geoparams      : array-like
+    :param r_bins        :  The (elliptical) bins, in radians, for the profile. 
+    :type r_bins         : array-like
+    :param theta_range   :  The range of angles for which to create a 1D profile (which can then be interpolated)
+    :type theta_range    : np.ndarray 
+    :param inalphas      :  This should generally be an empty list, unless modelling shocks.
+    :type inalphas       : array-like, optional
+    :param beta          :  Fraction of the speed of light of the cluster bulk (peculiar) motion.
+    :type beta           : float
+    :param betaz         :  Fraction of the speed of light of the cluster along the line of sight.
+    :type betaz          : float
+    :param finint        :  Integrate out to last finite (defined) bin. Defaults to False
+    :type finint         : bool
+    :param narm          :  Normalized at R_Min. Defaults to False
+    :type narm           : bool
+    :param fixalpha      :  Fix alpha (to whatever inalpha is); useful for shocks.
+    :type fixalpha       : bool
+    :param strad         :  STrict RADii; if the pressure model has to obey strict placements of radii, use this!
+    :type strad          : bool
+    :param array         :  only used with NIKA2 data; which detector array is being used?
+    :type array          : str
+    :param fullSZcorr    :  integrate relativistic corrections along line of sight?
+    :type fullSZcorr     : bool
+    :param SZtot         :  total SZ signal... not really useful
+    :type SZtot          : bool
+    :param columnDen     :  Set to true if you want to return the column density...?
+    :type columnDen      : bool
+    :param Comptony      :  When set (by default), returns Comptony profile
+    :type Comptony       : bool
+    :param instrument    :  MUSTANG-2 by default. Used in relativistic calculations.
+    :type instrument     : str
+    :param negvals       :  Boolean array, the length of density_proxy.
+    :type negvals        : np.ndarray(dtype=bool)
 
     Notes
     __________
@@ -214,11 +246,14 @@ def integrate_profiles(epressure, geoparams,r_bins,theta_range,inalphas=[],
 def general_gridding(xymap,theta_range,r_bins,geoparams,finite=False,taper='normal',
                      integrals=0,Int_Pres=0,ell_int=0,tap_int=0,oldvs=False,xyinas=True):
     """
-    Returns a surface brightness map for a binned profile fit, with far more generality than previously done.
+    Returns a surface brightness map for a binned los-integrated profile (Int_Pres).
     
-    Parameters
-    __________
-    xymap         :  A tuple (x,y) where x and y are grids of their respective coordinates in << arceconds >>
+    :param xymap         :  A tuple (x,y) where x and y are grids of their respective coordinates in << arceconds >>
+    :type xymap          : tuple of np.ndarray
+    :param theta_range   : Array of radii for the corresponding Int_Pres
+    :type theta_range    :  np.ndarray
+    :param geoparams   :  [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
+    :type geoparams      : array-like
 
     Notes
     __________
@@ -257,9 +292,6 @@ def general_gridding(xymap,theta_range,r_bins,geoparams,finite=False,taper='norm
     else:  
         mymap = grid_profile(theta_range, Int_Pres, xymap, geoparams=geoparams,myscale=1.0,xyinas=xyinas)
 
-### 03 August 2017 - WTF?????
-    ###mymap = np.transpose(mymap)
-
     return mymap
 
 
@@ -292,17 +324,28 @@ def binsky_SZ_general(epressure, geoparams,r_bins,theta_range,xymap,
     
     Parameters
     __________
-    epressure   :  The electron pressure (no units in Python, but otherwise should be in cm**-3 keV**-1)
-    geoparams   :  [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
-    r_bins      :  The (elliptical) bins for the profile. 
-    theta_range :  The range of angles for which to create a 1D profile (which can then be interpolated)
-    xymap       :  A tuple (x,y) where x and y are grids of their respective coordinates in << arceconds >>
-    inalphas    :  Nothing to see here. Move along.
-    beta        :  Fraction of the speed of light of the cluster bulk (peculiar) motion.
-    betaz       :  Fraction of the speed of light of the cluster along the line of sight.
-    finite      :  Integrate out to last finite (defined) bin.
-    narm        :  Normalized at R_Min. This is important for integrating shells.
-    strad       :  STrict RADii; if the pressure model has to obey strict placements of radii, use this!
+    :param epressure   :  The electron pressure (no units in Python, but otherwise should be in cm**-3 keV**-1)
+    :type epressure    : array-like
+    :param geoparams   :  [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
+    :type geoparams    : array-like
+    :param r_bins      :  The (elliptical) bins for the profile. 
+    :type r_bins       : array-like
+    :param theta_range :  The range of angles for which to create a 1D profile (which can then be interpolated)
+    :type theta_range  : array-like
+    :param xymap       :  A tuple (x,y) where x and y are grids of their respective coordinates in << arceconds >>
+    :type xymap        : tuple
+    :param inalphas    :  Nothing to see here. Move along.
+    :type inalphas     : array-like
+    :param beta        :  Fraction of the speed of light of the cluster bulk (peculiar) motion.
+    :type beta         : float
+    :param betaz       :  Fraction of the speed of light of the cluster along the line of sight.
+    :type betaz        : float
+    :param finite      :  Integrate out to last finite (defined) bin.
+    :type finite       : bool
+    :param narm        :  Normalized at R_Min. This is important for integrating shells.
+    :type narm         : bool
+    :param strad       :  STrict RADii; if the pressure model has to obey strict placements of radii, use this!
+    :type strad        : bool
 
     Notes
     __________
@@ -332,8 +375,28 @@ def binsky_general(vals,geoparams,r_bins,theta_range,xymap,inalphas=[],
     
     Parameters
     __________
-    vals      :  Pressure for each bin used
-    geoparams :  [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
+    :param vals        :  The electron pressure (no units in Python, but otherwise should be in cm**-3 keV**-1)
+    :type vals         : array-like
+    :param geoparams   :  [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
+    :type geoparams    : array-like
+    :param r_bins      :  The (elliptical) bins for the profile. 
+    :type r_bins       : array-like
+    :param theta_range :  The range of angles for which to create a 1D profile (which can then be interpolated)
+    :type theta_range  : array-like
+    :param xymap       :  A tuple (x,y) where x and y are grids of their respective coordinates in << arceconds >>
+    :type xymap        : tuple
+    :param inalphas    :  Nothing to see here. Move along.
+    :type inalphas     : array-like
+    :param beta        :  Fraction of the speed of light of the cluster bulk (peculiar) motion.
+    :type beta         : float
+    :param betaz       :  Fraction of the speed of light of the cluster along the line of sight.
+    :type betaz        : float
+    :param finite      :  Integrate out to last finite (defined) bin.
+    :type finite       : bool
+    :param narm        :  Normalized at R_Min. This is important for integrating shells.
+    :type narm         : bool
+    :param strad       :  STrict RADii; if the pressure model has to obey strict placements of radii, use this!
+    :type strad        : bool
     
     Notes:
     __________
@@ -342,7 +405,7 @@ def binsky_general(vals,geoparams,r_bins,theta_range,xymap,inalphas=[],
     
     Returns
     -------
-    An map that accounts for a range of geometrical restrictions. The integrals may not be applicable.
+    A map that accounts for a range of geometrical restrictions. The integrals may not be applicable.
 
     """
 
@@ -367,7 +430,29 @@ def binsky_general(vals,geoparams,r_bins,theta_range,xymap,inalphas=[],
 
 def grid_profile(theta_range, profile, xymap, geoparams=[0,0,0,1,1,1,0,0],myscale=1.0,axis='z',
                  xyinas=True):
+    """   
+    Grids a sufficiently fine-resolution profile.
 
+    :param theta_range: values
+    :type theta_range: numpy.ndarray
+    :param profile: values
+    :type profile: numpy.ndarray
+    :param xymap       :  A tuple (x,y) where x and y are grids of their respective coordinates in << arceconds >>
+    :type xymap        : tuple
+    :param geoparams   :  [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
+    :type geoparams    : array-like
+    :param myscale     :  Rescale the profile (e.g. to account for elongation along the line of sight)
+    :type myscale      : float
+    :param axis        :  scale about x, y, or z
+    :type axis         : str
+    :param xyinas      :  xymap is in arcseconds (yes)
+    :type axyinas      : bool
+
+
+    """
+
+
+    
     ### Get new grid:
     (x,y) = xymap
     x,y = rot_trans_grid(x,y,geoparams[0],geoparams[1],geoparams[2])
@@ -410,12 +495,40 @@ def grid_profile(theta_range, profile, xymap, geoparams=[0,0,0,1,1,1,0,0],myscal
     return mymap
 
 def get_ell_rads(x,y,ella,ellb):
+    """   
+    Get ellipsoidal radii from x,y standard
 
+    :param x: coordinate along major axis (a) 
+    :type x: numpy.ndarray
+    :param y: coordinate along minor axis (b) 
+    :type y: numpy.ndarray
+    :param ella: scaling along major axis (should stay 1)
+    :type ella: float
+    :param ellb: scaling along minor axis
+    :type ella: float
+
+    """
+    
     xnew = x/ella ; ynew = y/ellb
 
     return xnew, ynew
     
 def rot_trans_grid(x,y,xs,ys,rot_rad):
+    """   
+    Shift and rotate coordinates
+
+    :param x: coordinate along major axis (a) 
+    :type x: numpy.ndarray
+    :param y: coordinate along minor axis (b) 
+    :type y: numpy.ndarray
+    :param xs: translation along x-axis
+    :type xs: float
+    :param ys: translation along y-axis
+    :type ys: float
+    :param rot_rad: rotation angle, in radians
+    :type rot_rad: float
+
+    """
 
     xnew = (x - xs)*np.cos(rot_rad) + (y - ys)*np.sin(rot_rad)
     ynew = (y - ys)*np.cos(rot_rad) - (x - xs)*np.sin(rot_rad)
@@ -424,7 +537,15 @@ def rot_trans_grid(x,y,xs,ys,rot_rad):
 
 def ycylfromprof(Int_Pres,theta_range,theta_max):
     """
-    Remember, theta_range is in radians
+    Integrate Int_Pres over area to get y_cyl
+
+    :param Int_Pres: array of Compton y values
+    :type Int_Pres: numpy.ndarray
+    :param theta_range: array of radii, in radians
+    :type theta_range: numpy.ndarray
+    :param theta_max: perform integral within this radius.
+    :type theta_max: float
+
     """
     i=1 # Start at the second entry!
     Ycyl=0
@@ -437,7 +558,7 @@ def ycylfromprof(Int_Pres,theta_range,theta_max):
 
     return Ycyl
 
-def analytic_shells(r_bins,vals,theta,correl=False,alphas=[],shockxi=0.0,fixalpha=False,
+def analytic_shells(r_bins,vals,theta,alphas=[],shockxi=0.0,fixalpha=False,
                     finite=False,narm=False,strad=False,negvals=None,tmax=0):
     """
     Returns an integrated map of some signal along the line of sight. This routine
@@ -445,18 +566,26 @@ def analytic_shells(r_bins,vals,theta,correl=False,alphas=[],shockxi=0.0,fixalph
     
     Parameters
     __________
-    r_bins   : The radial bins (in radian, I believe)
-    vals     :  Pressure for each bin used
-    theta    : An array of radii (in radian) in the map, which will be used for gridding the model
-    [correl] : Correlate?
-    [alphas] : An array of power laws (indices) for 3d pressure distribution
-    [shockxi]: Polar tapering, if used in a shock model.
-    [finite] : Set this keyword if you do NOT want to integrate to infinity.
-    [narm]   :  Normalize at R_min (within a bin)
-    [strad]  : STrict RADii. When using a shock model (e.g. Abell 2146), where specific radii,
+    :param r_bins   : The radial bins (in radian, I believe)
+    :type r_bins    : np.ndarray
+    :param vals     :  Pressure for each bin used
+    :type vals      : np.ndarray
+    :param theta    : An array of radii (in radian) in the map, which will be used for gridding the model
+    :type theta     : np.ndarray
+    :param alphas   : An array of power laws (indices) for 3d pressure distribution
+    :type alphas    : array-like
+    :param shockxi  : Polar tapering, if used in a shock model.
+    :type shockxi   : float
+    :param finite   : Set this keyword if you do NOT want to integrate to infinity.
+    :type finite    : bool
+    :param narm     :  Normalize at R_min (within a bin)
+    :type narm      : bool
+    :param strad    : STrict RADii. When using a shock model (e.g. Abell 2146), where specific radii,
                ESPECIALLY inner radii are defined, this keyword SHOULD be set! Note that if
                the finite keyword is set, then this does not need to be set. 
-    [negvals]: None by default. Otherwise, set as boolean array, same length as r_bins
+    :type strad     : bool, optional
+    :param negvals  : None by default. Otherwise, set as boolean array, same length as r_bins
+    :type negvals   : np.ndarray, optional
 
     Returns
     -------
@@ -542,53 +671,23 @@ def analytic_shells(r_bins,vals,theta,correl=False,alphas=[],shockxi=0.0,fixalph
         
     return totals,alphas,integrals
 
-##########################################################################################
-##### I don't think I need the following module, but, I'll leave it for now          #####
-##########################################################################################
-
-def analytic_shock(r_bins,vals,alphas,theta,shockxi):
-    """
-    CURRENTLY UNUSED (September 2017)
-    """
-    
-    mybins=np.append(r_bins,-1);    mybins[-1]=-1
-    nthetas = len(theta)
-    integrals = np.zeros((len(r_bins),nthetas))
-
-    for idx, myval in enumerate(r_bins):
-        rin=mybins[idx]
-        rout=mybins[idx+1]
-        mypressure=vals[idx] # Gah, what a stupid way to do this.
-        integrals[idx] = shell_pl(mypressure,alphas[idx]+shockxi,rin,rout,theta) #R had been in here.
-        
-    totals = np.sum(integrals,axis=0)  # This should accurately produce Compton y values.
-
-    return totals,integrals
-
-##########################################################################################
-##### End unecessary module. (19 July 2017)                                          #####
-##########################################################################################
-
-def shell_correl(integrals,r_bins,theta):
-
-    nrad,nbin=integrals.shape
-    mybins=np.append([0],r_bins)
-#    mybins=[0] + r_bins
-    mybins[-1]=-1
-    avgs=np.zeros((len(r_bins),len(r_bins)))
-    for idx, val in enumerate(r_bins):
-        for idy, val in enumerate(r_bins):
-            rin=mybins[idy]
-            rout=mybins[idy+1]
-            myind=np.where((theta < rout) & (theta >= rin))
-            avgs[idx,idy]=np.mean(integrals[idx,myind])      
-            
-    return avgs
-
 def iter_grid_profile(integrals, myrs, theta_range, xymap, geoparams=[0,0,0,1,1,1,0,0],axis='z'):
     """
     This largely copies the functionality of grid_profile, but is designed to be much faster for
     iterative applications (same geoparams)
+
+    :param integrals: array of los-integrated values (i.e. SB profiles)
+    :type integrals: np.ndarray
+    :param myrs: array of bin radii
+    :type myrs: array-like
+    :param theta_range: profile of radii
+    :type theta_range: np.ndarray
+    :param xymap: tuple of arrays of x and y coordinates
+    :type xymap: tuple
+    :param geoparams   :  [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
+    :type geoparams    : array-like
+    :param axis        :  scale about x, y, or z
+    :type axis         : str
     """
 
     ### Get new grid:
@@ -635,6 +734,21 @@ def iter_grid_profile_v2(integrals, myrs, theta_range, xymap, geoparams=[0,0,0,1
     """
     This largely copies the functionality of grid_profile, but is designed to be much faster for
     iterative applications (same geoparams)
+
+    :param integrals: array of los-integrated values (i.e. SB profiles)
+    :type integrals: np.ndarray
+    :param myrs: array of bin radii
+    :type myrs: array-like
+    :param theta_range: profile of radii
+    :type theta_range: np.ndarray
+    :param xymap: tuple of arrays of x and y coordinates
+    :type xymap: tuple
+    :param geoparams   :  [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
+    :type geoparams    : array-like
+    :param axis        :  scale about x, y, or z
+    :type axis         : str
+    :param xinas       :  xymap is in arcseconds?
+    :type xinas        : bool
     """
 
     a2r    = (u.arcsec).to("radian")
@@ -686,53 +800,35 @@ def iter_grid_profile_v2(integrals, myrs, theta_range, xymap, geoparams=[0,0,0,1
 
 
 def shell_pl(epsnot,sindex,rmin,rmax,radarr,c=1.0,ff=1e-3,epsatrmin=0,
-             narm=False,tmax=0,scase=0):
+             narm=False,tmax=0):
 
-##############################################################
-### Written by Charles Romero. IRAM.
-###
-### PURPOSE: Integrate a power law function (similiar to emissivity) 
-###          along the z-axis (i.e. line of sight). This performs the
-###          integration analytically.
-###
-### HISTORY:
-### 25.06.2016 - CR: Created.
-### 16.01.2022 - CR: Editted to go to theta max (spherical section).
-##############################################################
-### INPUTS:
-#
-# EPSNOT    - The normalization factor. The default behavior is for
-#             this to be defined at RMAX, the outer edge of a sphere
-#             or shell. If you integrate to infinity, then this should
-#             be defined at RMIN. And of course, RMIN=0, and RMAX as
-#             infinity provides no scale on which to define EPSNOT.
-#             See the optional variable EPSATRMIN.
-# SINDEX    - "Spectral Index". That is, the power law 
-#             (without the minus sign) that the "emissivity"
-#             follows within your bin. If you want to integrate to
-#             infinity, you must have SINDEX > 1. All other cases can
-#             handle any SINDEX value.
-# RMIN      - Minimum radius for your bin. Can be 0.
-# RMAX      - Maximum radius for your bin. If you wish to set this
-#             to infinity, then set it to a negative value.
-#
-### -- NOTE -- If RMIN = 0 and RMAX < 0, then this program will return 0.
-#
-# RADARR    - A radial array of projected radii (same units as RMIN
-#             and RMAX) for which projected values will be calculated.
-#             If the innermost value is zero, its value, in the scaled
-#             radius array will be set to FF.
-# [C=1]     - The scaling axis for an ellipse along the line of sight.
-#             The default 
-# [FF=1e-3] - Fudge Factor. If the inner
-# [EPSATRMIN] - Set this to a value greater than 0 if you want EPSNOT to be
-#               defined at RMIN. This automatically happens if RMAX<0
-# [NARM]    - Normalized At R_Min. This option specifies that you have *already*
-#             normalized the bins at R_Min (for a shell case). The other two cases are
-#             strictly imposed where the normalization is set. The default is False,
-#             because that is just how I started using this.
-# [tmax]    - Maximum theta (from the nose - of, say, a shock).
-#
+    """
+    The heart of this code. This routine calculates analytic los integrals depending on the case.
+
+    :param epsnot: The normalization factor. The default behavior is for this to be defined at RMAX, the outer edge of a sphere or shell. If you integrate to infinity, then this should be defined at RMIN. And of course, RMIN=0, and RMAX as infinity provides no scale on which to define EPSNOT. See the optional variable EPSATRMIN.
+    :type epsnot: float
+    :param sindex: "Spectral Index". That is, the power law (without the minus sign) that the "emissivity" follows within your bin. If you want to integrate to infinity, you must have SINDEX > 1. All other cases can handle any SINDEX value.
+    :type sindex: float
+    :param rmin: Minimum radius for your bin. Can be 0.
+    :type rmin: float
+    :param rmax: Maximum radius for your bin. If you wish to set this to infinity, then set it to a negative value.
+    :type rmax: float
+    :param radarr: A radial array of projected radii (same units as RMIN and RMAX) for which projected values will be calculated. If the innermost value is zero, its value, in the scaled radius array will be set to FF.
+    :type radarr: np.ndarray
+    :param c: The scaling axis for an ellipse along the line of sight. Default is 1.0
+    :type c: float
+    :param ff: Fudge Factor, but more of a thresholding factor. Default is 1e-3.
+    :type ff: float
+    :param epsatrmin: Set this to a value greater than 0 if you want EPSNOT to be defined at RMIN. This automatically happens if RMAX<0
+    :type epsatrmint: float
+    :param narm: Normalized At R_Min. This option specifies that you have *already* normalized the bins at R_Min (for a shell case). The other two cases are strictly imposed where the normalization is set. The default is False, because that is just how I started using this.
+    :type narm: bool
+    :param tmax: Maximum theta (from the nose - of, say, a shock).
+    :type tmax: float
+
+    NOTE: If RMIN = 0 and RMAX < 0, then this program will return 0.
+    """
+
 ##############################################################
 ### OUTPUTS:
 #
@@ -812,6 +908,22 @@ def shell_pl(epsnot,sindex,rmin,rmax,radarr,c=1.0,ff=1e-3,epsatrmin=0,
 ##############################################################
 
 def plsphere(p,rmin,rmax,radarr,tmax=0):
+    """
+    Analytic los integral for a full sphere.
+
+    :param p: "Spectral Index". That is, the power law (without the minus sign) that the "emissivity" follows within your bin. If you want to integrate to infinity, you must have SINDEX > 1. All other cases can handle any SINDEX value.
+    :type p: float
+    :param rmin: Minimum radius for your bin. This is 0 for the sphere.
+    :type rmin: float
+    :param rmax: Maximum radius for your bin. If you wish to set this to infinity, then set it to a negative value.
+    :type rmax: float
+    :param radarr: A radial array of projected radii (same units as RMIN and RMAX) for which projected values will be calculated. If the innermost value is zero, its value, in the scaled radius array will be set to FF.
+    :type radarr: np.ndarray
+    :param tmax: Maximum theta (from the nose - of, say, a shock).
+    :type tmax: float
+    """
+
+    
     c1 = radarr<=rmax              # condition 1
     c2 = radarr>rmax               # condition 2
 #    c1 = np.where(radarr<=rmax)     # condition 1
@@ -840,6 +952,20 @@ def plsphere(p,rmin,rmax,radarr,tmax=0):
     return myres*rmax               # The results we want
 
 def plshell(p,rmin,rmax,radarr,tmax=0):
+    """
+    Analytic los integral for a spherical shell.
+
+    :param p: "Spectral Index". That is, the power law (without the minus sign) that the "emissivity" follows within your bin. If you want to integrate to infinity, you must have SINDEX > 1. All other cases can handle any SINDEX value.
+    :type p: float
+    :param rmin: Minimum radius for your bin. This is 0 for the sphere.
+    :type rmin: float
+    :param rmax: Maximum radius for your bin. If you wish to set this to infinity, then set it to a negative value.
+    :type rmax: float
+    :param radarr: A radial array of projected radii (same units as RMIN and RMAX) for which projected values will be calculated. If the innermost value is zero, its value, in the scaled radius array will be set to FF.
+    :type radarr: np.ndarray
+    :param tmax: Maximum theta (from the nose - of, say, a shock).
+    :type tmax: float
+    """    
     c1 = radarr<=rmax              # condition 1
     c2 = radarr[c1]<rmin           # condition 2
     c3 = radarr<rmin               # c1[c2] as I would expect in IDL
@@ -884,6 +1010,20 @@ def plshell(p,rmin,rmax,radarr,tmax=0):
     return myres*rmin                          # The results we want
 
 def plsphole(p,rmin,rmax,radarr,tmax=0):
+    """
+    Analytic los integral for out to infinity, but missing a spherical core.
+
+    :param p: "Spectral Index". That is, the power law (without the minus sign) that the "emissivity" follows within your bin. If you want to integrate to infinity, you must have SINDEX > 1. All other cases can handle any SINDEX value.
+    :type p: float
+    :param rmin: Minimum radius for your bin. This is 0 for the sphere.
+    :type rmin: float
+    :param rmax: Maximum radius for your bin. If you wish to set this to infinity, then set it to a negative value.
+    :type rmax: float
+    :param radarr: A radial array of projected radii (same units as RMIN and RMAX) for which projected values will be calculated. If the innermost value is zero, its value, in the scaled radius array will be set to FF.
+    :type radarr: np.ndarray
+    :param tmax: Maximum theta (from the nose - of, say, a shock).
+    :type tmax: float
+    """    
     
     if p <= 0.5:
         return radarr*0 - 1.0e10
@@ -910,6 +1050,20 @@ def plsphole(p,rmin,rmax,radarr,tmax=0):
         return myres*rmin
 
 def plinfty(p,rmin,rmax,radarr,tmax=None):
+    """
+    Analytic los integral for infinity. It doesn't work. Returns 0.
+
+    :param p: "Spectral Index". That is, the power law (without the minus sign) that the "emissivity" follows within your bin. If you want to integrate to infinity, you must have SINDEX > 1. All other cases can handle any SINDEX value.
+    :type p: float
+    :param rmin: Minimum radius for your bin. This is 0 for the sphere.
+    :type rmin: float
+    :param rmax: Maximum radius for your bin. If you wish to set this to infinity, then set it to a negative value.
+    :type rmax: float
+    :param radarr: A radial array of projected radii (same units as RMIN and RMAX) for which projected values will be calculated. If the innermost value is zero, its value, in the scaled radius array will be set to FF.
+    :type radarr: np.ndarray
+    :param tmax: Maximum theta (from the nose - of, say, a shock).
+    :type tmax: float
+    """    
     sr=(radarr)                      # scaled radii
     cbf=(sps.gamma(p-0.5)*np.sqrt(np.pi))/sps.gamma(p) # complete beta function
     plt=(sr**(1.0-2.0*p))          # Power law term
@@ -923,7 +1077,19 @@ def plinfty(p,rmin,rmax,radarr,tmax=None):
 
 
 def myrincbeta(x,a,b):
-# compute the regularized incomplete beta function.
+    """
+    compute the regularized incomplete beta function.
+    .. math::
+
+        B(x;a,b) \\equiv \\int_0^x u^{a-1} (1-u)^{b-1} du
+
+    :param x: Reflective of the radius out to which this is computed
+    :type x: float
+    :param a: Nameless parameter?
+    :type a: float
+    :param b: Nameless parameter?
+    :type b: float
+    """
   if a < 0:
       cbf=(sps.gamma(a)*sps.gamma(b))/sps.gamma(a+b)
       res = (x**a * (1.0-x)**b) / (a * cbf)
@@ -937,7 +1103,18 @@ def myrincbeta(x,a,b):
       return res
     
 def myredcosine(tmax,n):
-# computes \int_0^tmax cos^n(x) dx
+    """
+    computes 
+    .. math::
+
+    \int_0^tmax cos^n(x) dx
+
+    :param tmax: :math:`\\theta_{max}`
+    :type tmax: float
+    :param n: exponent
+    :type n: int
+
+    """
 
   if n < -2:
       res=np.cos(tmax)**(n+1)*np.sin(tmax)/(n+1) 
@@ -953,6 +1130,15 @@ def myredcosine(tmax,n):
       return res
 
 def ycyl_prep(Int_Pres,theta_range):
+    """
+    Just preparing some numbers.
+
+    :param Int_Pres: integrated pressures
+    :type Int_Pres: np.ndarray
+    :param theta_range: radii
+    :type theta_range: np.ndarray
+
+    """
 
     lnp = np.log(Int_Pres)
     ltr = np.log(theta_range)

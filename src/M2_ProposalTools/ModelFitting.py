@@ -14,7 +14,7 @@ import scipy.special as scs
 WH=reload(WH)
     
 
-def fit_spherical_model(z,M500,hdul,model="NP",pink=True,alpha=2,knee=1.0/60.0,nkbin=100,fwhm=9.0,nsteps=1000,
+def fit_spherical_model(z,M500,hdul,model="NP",pink=True,alpha=2,knee=1.0/120.0,nkbin=100,fwhm=9.0,nsteps=1000,
                         y2k=-3.3,uKinput=True,ySph=True,YMrel="A10",outdir="/home/data/",outbase="NP_fit_corner.png",
                         size=3.5):
 
@@ -25,6 +25,34 @@ def fit_spherical_model(z,M500,hdul,model="NP",pink=True,alpha=2,knee=1.0/60.0,n
     :type M500: quantity (mass units)
     :param hdul: Astropy/fits HDU list (Make sure wtmap and img have appropriate units)
     :type hdul: list of HDU class objects 
+    :param model: Type of model. Can be "NP" (for non-parametric), "GNFW" for generalized NFW, or "BETA" for a beta model.
+    :type model: str
+    :param pink: noise realization is pink noise
+    :type pink: bool
+    :param alpha: power-law index for red-noise part of pink noise. Default is 2.
+    :type alpha: float
+    :param knee: where, in inverse arcseconds, does the knee occur.
+    :type knee: float
+    :param nkbin: number of k-bins used to generate spectrum for pink noise.
+    :type nkbin: int
+    :param fwhm: Smoothing kernel for filtered map.
+    :type fwhm: float
+    :param nsteps: Number of steps to use in MCMC.
+    :type nsteps: int
+    :param y2k: Conversion factor between Compton y and Kelvin_RJ (for MUSTANG-2). Default is -3.3.
+    :type y2k: float
+    :param uKinput: The input map is taken to be in units of microKelvin_RJ if set.
+    :type uKinput: bool
+    :param ySph: Calculate :math:`y_{Sph}` if set; otherwise calculate :math:`y_{cyl}`. Default is True.
+    :type ySph: bool
+    :param YMrel: Which Y-M relation to use? Default is "A10".
+    :type YMrel: str
+    :param outdir: A string indicating the output directory, including trailing "/".
+    :type outdir: str
+    :param outbase: filename, without the directory path.
+    :type outbase: str
+    :param size: size of Lissajous daisy scan used (for transfer function). Options are 2.5, 3.0, 3.5, 4.0, 4.5, or 5.0
+    :type size: float.
     
     """
 
@@ -73,7 +101,45 @@ def automated_mask(xymap,cosmo_pars,efv):
 def get_emcee_fit_vars(cosmo_pars,M500,SNRint,xc,yc,pixsize,outdir,
                        MinRes=1.0,model="NP",ySph=True,YMrel="A10",nb_theta_range=150,SNRperbin=4.0,
                        n_at_rmin=False,fit_mnlvl=True,fit_cen=True,fit_geo=False,size=3.5):
-
+    """
+    :param cosmo_pars: a dictionary of cosmological parameters
+    :type cosmo_pars: dict
+    :param M500: :math:`M\\_{500}`
+    :type M500: quantity (mass units)
+    :param SNRint: Integrated SNR (how many sigma detection).
+    :type SNRint: float
+    :param xc: x-centroid, in pixels
+    :type xc: float
+    :param yc: y-centroid, in pixels
+    :type yc: float
+    :param pixsize: pixel size, in arcseconds
+    :type pixsize: float
+    :param outdir: A string indicating the output directory, including trailing "/".
+    :type outdir: str
+    :param MinRes: minimum resolution (in defining radial profile). Default is 1 arcsecond.
+    :type MinRes: float
+    :param model: Type of model. Can be "NP" (for non-parametric), "GNFW" for generalized NFW, or "BETA" for a beta model.
+    :type model: str
+    :param ySph: Calculate :math:`y_{Sph}` if set; otherwise calculate :math:`y_{cyl}`. Default is True.
+    :type ySph: bool
+    :param YMrel: Which Y-M relation to use? Default is "A10".
+    :type YMrel: str
+    :param nb_theta_range: number of points in theta_range array.
+    :type nb_theta_range: int
+    :param SNRperbin: minimum desired SNR per bin. Default is 4.0.
+    :type SNRperbin: float
+    :param n_at_rmin: Normalize at r_min. Default is False. (Unless you know what you are doing, leave this.)
+    :type n_at_rmin: bool
+    :param fit_mnlvl: Fit for a mean level? Default is True
+    :type fit_mnlvl: bool
+    :param fit_cen: Fit for a center? Default is True
+    :type fit_cen: bool
+    :param fit_geo: Fit for a an elliptical geometry? Default is False
+    :type fit_geo: bool
+    :param size: size of Lissajous daisy scan used (for transfer function). Options are 2.5, 3.0, 3.5, 4.0, 4.5, or 5.0
+    :type size: float.
+    
+    """
     Theta500    = WH.Theta500_from_M500_z(M500,cosmo_pars["z"])
     minpixrad   = (MinRes*u.arcsec).to('rad')
     
@@ -158,6 +224,25 @@ def get_emcee_fit_vars(cosmo_pars,M500,SNRint,xc,yc,pixsize,outdir,
     return efv
 
 def run_emcee(hdul,cosmo_pars,efv,xymap,outfile,BSerr=False,nsteps=1000):
+    """
+    Run the actual fitting procedure.
+
+    :param hdul: an input fits HDUList with extension=0 being the data and extension=1 being the weights.
+    :type hdul: list
+    :param cosmo_pars: Dictionary of cosmological parameters
+    :type cosmo_pars: dict
+    :param efv: Dictionary of emcee fitting variables
+    :type efv: dict
+    :param xymap: tuple of arrays of x- and y-coordinates.
+    :type xymap: tuple
+    :param outfile: output file (full path)
+    :type outfile: str
+    :param BSerr: Bootstrap error?
+    :type BSerrL bool
+    :param nsteps: Number of fitting steps. Default is 1000.
+    :type nsteps: int
+
+    """
     
 
     def lnlike(pos):                          ### emcee_fitting_vars
@@ -226,6 +311,22 @@ def run_emcee(hdul,cosmo_pars,efv,xymap,outfile,BSerr=False,nsteps=1000):
     
  
 def post_mcmc_products(hdul,sampler,cosmo_pars,efv,xymap,outfile):
+    """
+    After the fitting, make plots and stuff
+
+    :param hdul: an input fits HDUList with extension=0 being the data and extension=1 being the weights.
+    :type hdul: list
+    :param sampler: sampler from emcee
+    :type sampler: class
+    :param cosmo_pars: Dictionary of cosmological parameters
+    :type cosmo_pars: dict
+    :param efv: Dictionary of emcee fitting variables
+    :type efv: dict
+    :param xymap: tuple of arrays of x- and y-coordinates.
+    :type xymap: tuple
+    :param outfile: output file (full path)
+    :type outfile: str
+    """
 
     flat_samples = sampler.get_chain(discard=efv["nburn"], thin=efv["nwalkers"],flat=True)
     mysolns = np.array(list(map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]),
@@ -280,6 +381,15 @@ def plot_pressure_profiles(solns,efv,m500,myfs=10):
 
     """
     For now, assuming model == "NP"... need to add others
+
+    :param solns: Array of solutions (with uncertainties)
+    :type solns: np.ndarray
+    :param efv: emcee fitting variables.
+    :type efv: dict
+    :param m500: Inferred M500 with uncertainties (3-element array)
+    :type m500: array-like
+    :param myfs: fontsize; default is 10
+    :type myfs: float
     """
     
     Pressures = (solns[1:efv["nBins"]+1]/efv["Pdl2y"]).to("keV cm**-3").value         # keV/cm**3
@@ -321,6 +431,21 @@ def plot_pressure_profiles(solns,efv,m500,myfs=10):
     myfig.savefig(efv["outdir"]+"RecoveredPressureProfile_"+efv["Mstr"]+"_"+efv["zstr"]+".png")
     
 def make_skymodel_map(hdul,pos,cosmo_pars,efv,xymap):
+    """
+    Run the actual fitting procedure.
+
+    :param hdul: an input fits HDUList with extension=0 being the data and extension=1 being the weights.
+    :type hdul: list
+    :param pos: parameters fit with mcmc
+    :type pos: array-like
+    :param cosmo_pars: Dictionary of cosmological parameters
+    :type cosmo_pars: dict
+    :param efv: Dictionary of emcee fitting variables
+    :type efv: dict
+    :param xymap: tuple of arrays of x- and y-coordinates.
+    :type xymap: tuple
+
+    """
 
     posind = 0
     yint=[]; outalphas=[]
@@ -338,7 +463,26 @@ def make_skymodel_map(hdul,pos,cosmo_pars,efv,xymap):
 
     return outmap,yint,outalphas,mnlvl
 
-def ellipsoidal_ICM(cosmo_pars,efv,pos,xymap,alphas,posind=0,fixalpha=False,ang_diam=1.0,oldvs=False):
+def ellipsoidal_ICM(cosmo_pars,efv,pos,xymap,alphas,posind=0,fixalpha=False):
+    """
+    Run the actual fitting procedure.
+
+    :param cosmo_pars: Dictionary of cosmological parameters
+    :type cosmo_pars: dict
+    :param efv: Dictionary of emcee fitting variables
+    :type efv: dict
+    :param pos: emcee fitting parameters
+    :type pos: array-like
+    :param xymap: tuple of arrays of x- and y-coordinates.
+    :type xymap: tuple
+    :param alphas: power-law indices
+    :type alphas: np.ndarray
+    :param posind: index for emcee parameters
+    :type posind: int
+    :param fixalpha: Fix the power-law indices to input values? Default is False.
+    :type fixalpha: bool
+
+    """
 
     szcv,szcu  = WH.get_sz_values()
     geom       = efv["geo"]
@@ -395,25 +539,22 @@ def ellipsoidal_ICM(cosmo_pars,efv,pos,xymap,alphas,posind=0,fixalpha=False,ang_
     ### Int_Pres natively is in Compton y. If you want a map in different units, one may convert Int_Pres to IntProf
     ### and feed that in instead of Int_Pres below:
     mymap = ai.general_gridding(xymap,efv["Thetas"],bins,geom,finite=efv["finite"],integrals=integrals,
-                                            Int_Pres=Int_Pres,oldvs=oldvs)
+                                            Int_Pres=Int_Pres,oldvs=False)
 
     return mymap,posind,yint,outalphas
 
-def Y_SZ_v2(yProf,efv,debug=False,retcurvs=False):
+def Y_SZ_v2(yProf,efv,retcurvs=False):
     """
-    yProf        - an integrated profile, i.e. in Compton y that matches theta_range
-    rProf        - the radial profile on the sky (in radians)
-    r_max        - the maximum (e.g. R500)
-    cluster      - a class containing redshift/cosmological information about the cluster.
-    h70          - H_0 scaled to 70 km/s/Mpc.
-    ylist        - reference list for Y500 (at all radii).
-    nsamp        - number of trial points
-    
+    :param yProf: an integrated profile, i.e. in Compton y that matches theta_range
+    :type yProf: np.ndarray
+    :param efv: emcee fitting variables
+    :type efv: dict
+    :param retcurvs: option to return curves; default is False.
+    :type retcurvs: bool 
+
     I'm adopting equations 25-27 in Arnaud+ 2010, which makes use of Y_SZ, or Y_cyl and the
     Universal Pressure Profile (UPP). I tried to find just a straight empirical Y_cyl(R500)-M_500,
     but that doesn't seem to exist?!?
-
-    (hofz,ang_dist,dens_crit) are defined within (cluster)
 
     """
 
@@ -439,10 +580,22 @@ def Y_SZ_v2(yProf,efv,debug=False,retcurvs=False):
 def ycyl_simul_v2(rads,yProf,alpha,maxrad,ylist,geom,r_thresh=3e-2,retcurvs=False):
 
     """
-    Remember, theta_range is in radians
     :param rads: Radius in radians
     :type rads: numpy.ndarray
-
+    :param yProf: Compton y profile
+    :type yProf: numpy.ndarray
+    :param alpha: list of power-law indices
+    :type alpha: array-like
+    :param maxrad: maximum radius
+    :type maxrad: float
+    :param ylist: array of expected y values.
+    :type ylist: numpy.ndarray
+    :param geom: [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
+    :type geom: array-like
+    :param r_thresh: Threshold value. Default is 3e-2.
+    :type r_thresh: float
+    :param retcurvs: Return curves? Default is False.
+    :type retcurvs: bool
     """
 
     fgeo          = geom[3]*geom[4] # Scale by ellipsoidal radii scalings.
@@ -499,9 +652,23 @@ def ycyl_simul_v2(rads,yProf,alpha,maxrad,ylist,geom,r_thresh=3e-2,retcurvs=Fals
         return bestY,bestr
    
 def ysph_simul(ylist,rads,pProf,alpha,geom,ythresh=3e-8,retcurvs=False):
+
     """
-    To be developped.
-    """
+    :param ylist: array of expected y values.
+    :type ylist: numpy.ndarray
+    :param rads: Radius in radians
+    :type rads: numpy.ndarray
+    :param pProf: pressure profile
+    :type pProf: numpy.ndarray
+    :param alpha: list of power-law indices
+    :type alpha: array-like
+    :param geom: [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
+    :type geom: array-like
+    :param y_thresh: Threshold value. Default is 3e-8.
+    :type y_thresh: float
+    :param retcurvs: Return curves? Default is False.
+    :type retcurvs: bool
+    """  
 
     fgeo          = geom[3]*geom[4]*geom[5] # Scale by ellipsoidal radii scalings.
     Ysph          = np.arange(10)
@@ -572,10 +739,12 @@ def fit_Gaussian_toSNR(SNRmap,pixsize,maxRad=2.0):
     
     """
     close to fitmap as was used in IDL
-    :SNRmap  - a 2D numpy array
-    :pixsize - pixel size, in arcseconds
-    :maxRad  - Maximum search radius, arcminutes
-
+    :param SNRmap: a 2D numpy array
+    :type SNRmap: nump.ndarray
+    :param pixsize: pixel size, in arcseconds
+    :type pixsize: float
+    :param maxRad: Maximum search radius, arcminutes
+    :type maxRad: float
     """
 
     nx,ny   = SNRmap.shape
@@ -610,6 +779,22 @@ def fit_Gaussian_toSNR(SNRmap,pixsize,maxRad=2.0):
     return popt,pcov,xc,yc
     
 def circ_Gauss(xdata,xc,yc,norm,sig,mnlvl):
+    """
+    Calculate a 2D (circular) Gaussian
+
+    :param xdata: an array of flattened x and y coordinates
+    :type xdata: numpy.ndarray
+    :param xc: x-center
+    :type xc: float
+    :param yc: y-center
+    :type yc: float
+    :param norm: Gaussian amplitude
+    :type norm: float
+    :param sig: Gaussian width (sigma)
+    :type sig: float
+    :param mnlvl: mean level (or DC offset, or pedastal)
+    :type mnlvl: float
+    """
 
     r1d   = np.sqrt(xdata[0,:]**2 + xdata[1,:]**2)
     Gauss = np.exp(-r1d**2/(2*sig**2))
@@ -618,6 +803,20 @@ def circ_Gauss(xdata,xc,yc,norm,sig,mnlvl):
     return model
 
 def get_int_SNR(SNRmap,pixsize,maxRad=2.0,bv=120.0,SNRthresh=1.0):
+    """
+    Get the integrated detection significance.
+
+    :param SNRmap: a 2D numpy array
+    :type SNRmap: nump.ndarray
+    :param pixsize: pixel size, in arcseconds
+    :type pixsize: float
+    :param maxRad: Maximum search radius, arcminutes
+    :type maxRad: float
+    :param bv: beam volume in square arcseconds. Default is 120.
+    :type bv: float
+    :param SNRthresh: SNR threshold
+    :type SNRthresh: float
+    """
 
     popt,pcov,xc,yc        = fit_Gaussian_toSNR(SNRmap,pixsize,maxRad=maxRad)
     xcentre                = xc+popt[0]
@@ -636,6 +835,22 @@ def get_int_SNR(SNRmap,pixsize,maxRad=2.0,bv=120.0,SNRthresh=1.0):
     return SNRint,xcentre,ycentre,xymap
     
 def bin_two2Ds(independent,dependent,binsize=1,witherr=False,withcnt=False):
+
+    """
+    Designed to bin up two 2D arrays, where the independent array is probably an array of radii.
+
+    :param independent: Our independent variable
+    :type independent: np.ndarray
+    :param dependent: Our dependent variable
+    :type dependent: np.ndarray
+    :param binsize: Binsize; default is 1
+    :type binsize: float
+    :param witherr: Calculate the uncertainty of the mean. Default is False.
+    :type witherr: bool
+    :param withcnt: Record the number of pixels in each bin.. Default is False.
+    :type withcnt: bool
+
+    """
 
     flatin = independent.flatten()
     flatnt = dependent.flatten()
@@ -662,6 +877,17 @@ def bin_two2Ds(independent,dependent,binsize=1,witherr=False,withcnt=False):
     return abin,obin,oerr,cnts
 
 def improved_bin_spacing(radminmax,nbins,mway=False):
+
+    """
+    Calculate the bin spacing for MUSTANG-2 based on the number of bins.
+
+    :param radminmax: two-element array or list, of minimum and maximum radii (in arcseconds) to cover.
+    :type radminmax: array-like
+    :param nbins: Number of bins
+    :type nbins: int
+    :param mway: An option to try another way. Default (best option) is False.
+    :type mway: bool
+    """
 
     m2fwhm    = 10.0 * u.arcsec.to('rad')
     bins      = np.logspace(np.log10(radminmax[0]),np.log10(radminmax[1]), nbins)
@@ -727,6 +953,16 @@ def pos_neg_formatter(med,high_err,low_err,sys=None,cal=None):
     Input the median (or mode), and the *error bars* (not percentile values, but the
     distance between the +/-1 sigma percentiles and the 0 sigma percentile).
 
+    :param med: median
+    :type med: float
+    :param high_err: uncertainty (on the high side)
+    :type high_err: float
+    :param low_err: uncertainty (on the low side)
+    :type low_err: float
+    :param sys: systematic error. Default is None
+    :type sys: float
+    :param cal: calibration error. Default is None
+    :type cal: float
     """
 
     mypow = np.floor(np.log10(med))
@@ -771,6 +1007,15 @@ def pos_neg_formatter(med,high_err,low_err,sys=None,cal=None):
     return coStr
 
 def extract_radial_profile(hdul,arcmin=True):
+    """
+    Extract a radial profile using the CRPIX value in a HDU.
+
+
+    :param hdul: HDUlist
+    :type hdul: list
+    :param arcmin: If true, then radius is given in arcminutes; otherwise in arcseconds.
+    :type arcmin: bool
+    """
 
     SOw                    = WCS(hdul[0].header)
     factor                 = 60.0 if arcmin else 1.0
@@ -781,7 +1026,7 @@ def extract_radial_profile(hdul,arcmin=True):
     #import pdb;pdb.set_trace()
     xc                     = SOw.wcs.crpix[0]
     yc                     = SOw.wcs.crpix[1]
-    print(xc,yc)
+    #print(xc,yc)
 
     xymap                  = WH.get_xymap(hdulImg,pixsize*u.arcsec,xcentre=xc,ycentre=yc,oned=False)
     rmap                   = WH.make_rmap(xymap) / factor
@@ -789,14 +1034,55 @@ def extract_radial_profile(hdul,arcmin=True):
 
     return rbin,ybin,yerr,ycnts
 
-def plot_SB_profiles(SimObs,SimSky,outdir,filename,solns=None,bv=120.0,xmin=0,xmax=2):
+def prntPeak(yProf,inHDU,isUK=True,Tag="SimObs-- "):
 
+    """
+    Print the peak of a profile and map to STDOUT.
+
+    :param yProf: the (binned) Compton y profile
+    :type yProf: numpy.ndarray
+    :param inHDU: a HDUList
+    :type: inHDU: list
+    :param isUK: are the units microKelvin? Default is True
+    :type isUK: bool
+    :param Tag: Additional tag
+    :type Tag: str
+    """
+
+    if isUK:
+        ProfPeak = np.min(yProf)
+        MapPeak  = np.min(inHDU[0].data)
+    else:
+        ProfPeak = np.max(yProf)
+        MapPeak  = np.max(inHDU[0].data)
+
+    print(Tag+"Peak in binned profile: ",ProfPeak," ; peak in map: ",MapPeak)
+
+def plot_SB_profiles(SimObs,SimSky,outdir,filename,prntPk=True,isUK=True):
+
+    """
+    A routine to plot a simulated sky versus simulated observation, radial profiles.
+
+    :param SimObs: an HDUList object for simulated observations
+    :type SimObs: list
+    :param SimSky: an HDUList object for simulated sky (beam-convolved; not filtered)
+    :type SimSky: list
+    :param outdir: Output director, with the trailing "/"
+    :type outdir: str
+    :param filename: Output filename, without path.
+    :type filename: str
+    :param prntPk: Print the peaks of profiles and maps? Default is True.
+    :type prntPk: bool
+    :param isUK: Are the arrays in the HDULists in units of uK? Default is True
+    :type isUK: bool
+
+    """
     SOr,SOy,SOe,SOc = extract_radial_profile(SimObs)
     SSr,SSy,SSe,SSc = extract_radial_profile(SimSky)
-    WMr,WMy,WMe,WMc = extract_radial_profile(SimSky)
-    pixsize         = WH.get_pixarcsec(SimObs)
-    bmCnt           = WMc*pixsize**2 / bv
-    UncPerBin       = 1.0/ np.sqrt( WMy*bmCnt )
+    #WMr,WMy,WMe,WMc = extract_radial_profile(SimSky)
+    #pixsize         = WH.get_pixarcsec(SimObs)
+    #bmCnt           = WMc*pixsize**2 / bv
+    #UncPerBin       = 1.0/ np.sqrt( WMy*bmCnt )
 
     myfig     = plt.figure(2,figsize=(5,4),dpi=200)
     myfig.clf()
@@ -804,6 +1090,10 @@ def plot_SB_profiles(SimObs,SimSky,outdir,filename,solns=None,bv=120.0,xmin=0,xm
     myax.plot(SOr,SOy,label="Mock Obs")
     myax.plot(SSr,SSy,label="Sky, bm conv.")
     #myax.plot(WMr,UncPerBin,label="Corresponding Unc.")
+
+    if prntPk:
+        prntPeak(SOy,SimObs,isUK=True,Tag="SimObs-- ")
+        prntPeak(SOy,SimSky,isUK=True,Tag="SimSky-- ")
     
     myax.set_xlabel("Radius (arcmin)")
     myax.set_ylabel(r"SB ($\mu$K)")
