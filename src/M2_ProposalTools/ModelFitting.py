@@ -473,7 +473,7 @@ def ycyl_simul_v2(rads,yProf,alpha,maxrad,ylist,geom,r_thresh=3e-2,retcurvs=Fals
     bisca = 0
     if len(turnover) > 1:
         besti  = np.where(mydiff == np.min(turnover))
-        bisca  = np.asscalar(besti[0])
+        bisca  = np.ndarray.item(besti[0])
     if bisca < nrbins -3 and bisca > 10: 
         myinds = bisca + np.asarray([-2,-1,0,1,2],dtype='int')
         #myinds = np.intersect1d(naind,
@@ -538,7 +538,7 @@ def ysph_simul(ylist,rads,pProf,alpha,geom,ythresh=3e-8,retcurvs=False):
     nrbins        = len(rads)
     if len(turnover) > 1:
         besti  = np.where(mydiff == np.min(turnover))
-        bisca  = np.asscalar(besti[0])
+        bisca  = np.ndarray.item(besti[0])
     if bisca < nrbins-3 and bisca > 10: 
         myinds = bisca + np.asarray([-2,-1,0,1,2],dtype='int')
         #myinds = np.intersect1d(naind,
