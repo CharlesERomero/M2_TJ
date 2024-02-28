@@ -588,9 +588,10 @@ def coaddimg_noRP(hdu1,hdu2):
     #print(c1,c2,c3,c4)
    
     NewWtm     = wtm1 + wtm2
-    NewImg     = (img1*wtm1 + img2*wtm2)/NewWtm
-    bi         = (NewWtm == 0)
-    NewImg[bi] = 0.0
+    WtdImg     = (img1*wtm1 + img2*wtm2)
+    NewImg     = np.zeros(NewWtm.shape)
+    gi         = (NewWtm > 0)
+    NewImg[gi] = WtdImg[gi]/NewWtm[gi]
 
     hdu1[0].data = NewImg *1.0
     hdu1[1].data = NewWtm *1.0

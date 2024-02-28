@@ -4,19 +4,16 @@ Welcome to M2_ProposalTools's documentation!
 **M2_ProposalTools** is a Python library for simulating MUSTANG-2 observations.
 The API is probably not  *simple* nor *intuitive*; this is under construction.
 
-Check out the :doc:`usage` section for further information, including
-how to :ref:`installation` the project.
-
 .. note::
 
-   This project is under active development.
+   This project is under active development. In particular, I'm figuring out how this whole Sphinx documentation thing works.
 
 Contents
 --------
 
 .. toctree::
-
-   intro
-   notebooks
-   usage
-   api
+    :maxdepth: 2
+    Intro <intro.rst>
+    Install <install.rst>
+    Notebooks <notebooks.rst>
+    API <api.rst>
