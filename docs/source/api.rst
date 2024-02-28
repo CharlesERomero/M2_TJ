@@ -1,4 +1,4 @@
-  M2\_ProposalTools\ package
+  M2\_ProposalTools package
 =================
 
 .. autosummary::
@@ -25,7 +25,7 @@ M2\_ProposalTools.numerical\_integration module
    :undoc-members:
    :show-inheritance:
 
-M2\_ProposalTools.ModelFitting\ module
+M2\_ProposalTools.ModelFitting module
 ---------------------
 
 .. automodule:: M2_ProposalTools.ModelFitting

@@ -2,3 +2,11 @@ sphinx==7.1.2
 sphinx_rtd_theme>=0.3.1
 nbsphinx
 docutils
+# for autodoc to work, it needs to compile the code.?
+astropy>=4.2.0
+scipy>=1.6.3
+numpy>=1.18
+matplotlib>=3.4.1
+reproject>=0.7
+emcee>=3.1.0
+corner>=2.0.0
