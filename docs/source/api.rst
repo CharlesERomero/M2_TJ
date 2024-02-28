@@ -1,4 +1,4 @@
-  M2_ProposalTools package
+  M2\_ProposalTools\ package
 =================
 
 .. autosummary::
@@ -9,7 +9,7 @@
 Submodules
 ----------
 
-M2_ProposalTools.analytic_integrations module
+M2\_ProposalTools.analytic\_integrations module
 ---------------------
 
 .. automodule:: M2_ProposalTools.analytic_integrations
@@ -17,7 +17,7 @@ M2_ProposalTools.analytic_integrations module
    :undoc-members:
    :show-inheritance:
 
-M2_ProposalTools.numerical_integration module
+M2\_ProposalTools.numerical\_integration module
 ---------------------
 
 .. automodule:: M2_ProposalTools.numerical_integration
@@ -25,7 +25,7 @@ M2_ProposalTools.numerical_integration module
    :undoc-members:
    :show-inheritance:
 
-M2_ProposalTools.ModelFitting module
+M2\_ProposalTools.ModelFitting\ module
 ---------------------
 
 .. automodule:: M2_ProposalTools.ModelFitting

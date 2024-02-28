@@ -626,13 +626,20 @@ def get_smoothing_factor(fwhm=9.0):
 
     return sf
 
-def make_pinknoise_real(rmsmap,pixsize,alpha=2,knee=1.0/120.0,nkbin=100,fwhm=9.0):
+def make_pinknoise_real(rmsmap,pixsize,alpha=2,knee=1.0/120.0,nkbin=100,fwhm=9.0,kmin=1.0/900.0):
 
     nx,ny       = rmsmap.shape
     k_img       = np.logspace(np.log10(1/(pixsize*nx)),np.log10(1.0/pixsize),nkbin)
-    p_init      = pixsize**2/np.pi       # I think...
+    if alpha == 2:
+        term1   = 2*np.pi * np.log(knee/kmin)
+    else:
+        term0   = knee**(2-alpha) - kmin**(2-alpha)
+        term1   = ( 2*np.pi*term0 )/(2-alpha) # Excess from pink noise
+    term2       = (np.pi * knee**2)                     # Relative WN contribution
+    pink_renorm = term2 / (term1 + term2)               # Pwn vs. Ptotal
+    p_init      = pixsize**2/np.pi                      # Normalization for WN
     pl_part     = (k_img/knee)**(-alpha)
-    pink        = (1 + pl_part)*p_init
+    pink        = (1 + pl_part)*p_init*pink_renorm      # Full pink noise, normalized
     cx,cy       = nx/2.0,ny/2.0
     sf          = get_smoothing_factor(fwhm=fwhm)
     
@@ -705,12 +712,16 @@ def get_cosmo_pars(z):
     h         = cosmo.H(z)/cosmo.H(0) # aka E(z) sometimes...
     rho_crit  = cosmo.critical_density(z)
     h70       = (cosmo.H(0) / (70.0*u.km / u.s / u.Mpc))
-    d_ang = get_d_ang(z)
+    d_ang     = get_d_ang(z)
 
-    iv      = h.value**(-1./3)*d_ang.to('Mpc').value
+    iv        = h.value**(-1./3)*d_ang.to('Mpc').value
+    d_a_kpc   = d_ang.to('kpc').value
+    Scale     = d_a_kpc*np.pi/(3600*180)       # kpc per arcsec
 
-    cosmo_pars={"hofz":h,"d_ang":d_ang,"d_a":d_ang.to('kpc').value,"rho_crit":rho_crit,
-                "h70":h70,"iv":iv,"z":z}
+    print("kpc per arcsecond: ",Scale)
+
+    cosmo_pars={"hofz":h,"d_ang":d_ang,"d_a":d_a_kpc,"rho_crit":rho_crit,
+                "h70":h70,"iv":iv,"z":z,"scale":Scale}
 
     return cosmo_pars
     

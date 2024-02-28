@@ -16,7 +16,7 @@ WH=reload(WH)
 
 def fit_spherical_model(z,M500,hdul,model="NP",pink=True,alpha=2,knee=1.0/120.0,nkbin=100,fwhm=9.0,nsteps=1000,
                         y2k=-3.3,uKinput=True,ySph=True,YMrel="A10",outdir="/home/data/",outbase="NP_fit_corner.png",
-                        size=3.5):
+                        size=3.5,Dist=False,plotPin=True,adPhys=True):
 
     """
     :param z: Redshift
@@ -77,7 +77,8 @@ def fit_spherical_model(z,M500,hdul,model="NP",pink=True,alpha=2,knee=1.0/120.0,
     ###############################################################################################
 
     efv        = get_emcee_fit_vars(CosmoPars,M500,intSNR,xc,yc,pixsize,outdir,
-                                    MinRes=pixsize/2.0,model=model,ySph=ySph,YMrel=YMrel,size=size)
+                                    MinRes=pixsize/2.0,model=model,ySph=ySph,YMrel=YMrel,size=size,
+                                    Dist=Dist)
     mask         = automated_mask(xymap,CosmoPars,efv)
 
     hdul[0].data = hdul[0].data + Noise
@@ -85,7 +86,7 @@ def fit_spherical_model(z,M500,hdul,model="NP",pink=True,alpha=2,knee=1.0/120.0,
 
     hdul.writeto(outdir+"InputHDU.fits",overwrite=True)
     
-    run_emcee(hdul,CosmoPars,efv,xymap,outdir+outbase,BSerr=False,nsteps=nsteps)
+    run_emcee(hdul,CosmoPars,efv,xymap,outdir+outbase,BSerr=False,nsteps=nsteps,plotPin=plotPin,adPhys=adPhys)
 
 def automated_mask(xymap,cosmo_pars,efv):
 
@@ -100,7 +101,7 @@ def automated_mask(xymap,cosmo_pars,efv):
 
 def get_emcee_fit_vars(cosmo_pars,M500,SNRint,xc,yc,pixsize,outdir,
                        MinRes=1.0,model="NP",ySph=True,YMrel="A10",nb_theta_range=150,SNRperbin=4.0,
-                       n_at_rmin=False,fit_mnlvl=True,fit_cen=True,fit_geo=False,size=3.5):
+                       n_at_rmin=False,fit_mnlvl=True,fit_cen=True,fit_geo=False,size=3.5,Dist=False):
     """
     :param cosmo_pars: a dictionary of cosmological parameters
     :type cosmo_pars: dict
@@ -219,11 +220,11 @@ def get_emcee_fit_vars(cosmo_pars,M500,SNRint,xc,yc,pixsize,outdir,
                    "M500":M500,"Theta500":Theta500,"YMrel":YMrel,"bins":bins,"nBins":nBins,"fit_mnlvl":fit_mnlvl,
                    "fit_cen":fit_cen,"fit_geo":fit_geo,"narm":n_at_rmin,"fixalpha":False,"finite":False,
                    "pinit":myval,"sbepos":sbepos,"pixsize":pixsize,"labels":labels,"outdir":outdir,
-                   "size":size,"Mstr":Mstr,"zstr":zstr,"lowbnd":lowbnd,"uppbnd":uppbnd}    
+                   "size":size,"Mstr":Mstr,"zstr":zstr,"lowbnd":lowbnd,"uppbnd":uppbnd,"Dist":Dist}    
 
     return efv
 
-def run_emcee(hdul,cosmo_pars,efv,xymap,outfile,BSerr=False,nsteps=1000):
+def run_emcee(hdul,cosmo_pars,efv,xymap,outfile,BSerr=False,nsteps=1000,plotPin=True,adPhys=True):
     """
     Run the actual fitting procedure.
 
@@ -307,10 +308,10 @@ def run_emcee(hdul,cosmo_pars,efv,xymap,outfile,BSerr=False,nsteps=1000):
 
     sampler  = emcee.EnsembleSampler(nwalkers, ndim,lnprob,threads = 1)
     state    = sampler.run_mcmc(p0, nsteps,progress=True)
-    post_mcmc_products(hdul,sampler,cosmo_pars,efv,xymap,outfile)
+    post_mcmc_products(hdul,sampler,cosmo_pars,efv,xymap,outfile,plotPin=plotPin,adPhys=adPhys)
     
  
-def post_mcmc_products(hdul,sampler,cosmo_pars,efv,xymap,outfile):
+def post_mcmc_products(hdul,sampler,cosmo_pars,efv,xymap,outfile,plotPin=True,adPhys=True):
     """
     After the fitting, make plots and stuff
 
@@ -375,9 +376,9 @@ def post_mcmc_products(hdul,sampler,cosmo_pars,efv,xymap,outfile):
     OutHDU.writeto(efv["outdir"]+OutName,overwrite=True)
 
     m500_res = np.abs(np.array([m500v,m_unc_values[0],m_unc_values[1]])) * 1e14
-    plot_pressure_profiles(mysolns,efv,m500_res)
+    plot_pressure_profiles(mysolns,efv,cosmo_pars,m500_res,plotPin=plotPin,adPhys=adPhys)
 
-def plot_pressure_profiles(solns,efv,m500,myfs=10):
+def plot_pressure_profiles(solns,efv,cosmo_pars,m500,myfs=10,plotPin=True,adPhys=True):
 
     """
     For now, assuming model == "NP"... need to add others
@@ -394,7 +395,7 @@ def plot_pressure_profiles(solns,efv,m500,myfs=10):
     
     Pressures = (solns[1:efv["nBins"]+1]/efv["Pdl2y"]).to("keV cm**-3").value         # keV/cm**3
     BinArcmin = efv["bins"]*60*180/np.pi                            # Arcminutes
-    Radii     = efv["Thetas"]*60*180/np.pi
+    Radii     = efv["Thetas"]*60*180/np.pi                          # Arcminutes
 
     Pminmax   = [np.min(Pressures[:,0])/10.0,np.max(Pressures[:,0])*5]
     #print(Pressures.shape)
@@ -410,23 +411,47 @@ def plot_pressure_profiles(solns,efv,m500,myfs=10):
     gi1       = (Radii < np.min(BinArcmin))
     myax.plot(Radii[gi1],Pinterp[gi1],"--",color="C0")
     gi2       = (Radii >= np.min(BinArcmin))*(Radii <= np.max(BinArcmin))
-    myax.plot(Radii[gi2],Pinterp[gi2],"-",color="C0")
+    myax.plot(Radii[gi2],Pinterp[gi2],"-",color="C0",label="Recovered Pressure Profile")
     gi3       = (Radii >= np.max(BinArcmin))
     myax.plot(Radii[gi3],Pinterp[gi3],"--",color="C0")
     myax.set_xscale("log")
     myax.set_yscale("log")
     myax.set_ylim(Pminmax)
     myax.set_xlabel(r"Radius (arcmin)",fontsize=myfs)
-    myax.set_xlabel(r"P$_e$ (keV cm$^{-3}$)",fontsize=myfs)
+    myax.set_ylabel(r"P$_e$ (keV cm$^{-3}$)",fontsize=myfs)
 
+    M500_out    = m500[0]*u.Msun
+    Theta500    = WH.Theta500_from_M500_z(M500_out,cosmo_pars["z"])
+    Arcmin500   = Theta500 * 60 * 180 / np.pi
+
+    
     mYM_pm   = pos_neg_formatter(m500[0],m500[1],m500[2])
     
     xpos = 10**(np.dot(np.log10(myax.get_xlim()),[0.90,0.10]))
     ypos = 10**(np.dot(np.log10(myax.get_ylim()),[0.60,0.40]))
     #print(xpos,ypos)
+    myax.axvline(Arcmin500,linestyle="--",color="c")
+    myax.text(Arcmin500*0.98,ypos,r"R$_{500}$",rotation=90,color="c",fontsize=myfs)    
     myax.text(xpos,ypos,r'M$_{500}$: '+mYM_pm,fontsize=myfs)
-    myax.set_title("Recovered Pressure Profile (Simulated)",fontsize=myfs)
 
+    if plotPin:
+        radkpc    = Radii * 60 * cosmo_pars["scale"] * u.kpc
+        PresProf  = WH.a10_from_m500_z(efv["M500"], cosmo_pars["z"],radkpc,Dist=efv["Dist"])
+        Pin       = PresProf.to("keV cm**-3").value
+        myax.plot(Radii,Pin,"--",label="Input Pressure Profile",color="g")
+
+    if adPhys:
+        xlims = myax.get_xlim()
+        myax.set_xlim(xlims)
+        phax = myax.twiny()
+        phax.set_xlim([xlim*cosmo_pars["scale"]*60 for xlim in xlims])
+        phax.set_xlabel("Radius (kpc)")
+        phax.set_xscale("log")
+    else:
+        myax.set_title("Recovered Pressure Profile (Simulated)",fontsize=myfs)  
+
+    myax.grid()
+    myax.legend(fontsize=myfs)
     myfig.tight_layout()
     myfig.savefig(efv["outdir"]+"RecoveredPressureProfile_"+efv["Mstr"]+"_"+efv["zstr"]+".png")
     

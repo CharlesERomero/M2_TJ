@@ -42,7 +42,8 @@ def conv_wtmap_torms(wtmap):
 def plot_rms_general(hdul,savefile,vmin=18,vmax=318,myfs=15,rmsmap=None,nscans=None,
                      prntinfo=False,cmark=True,ggmIsImg=False,tlo=True,wtcut=0.1,
                      cra=0,cdec=0,ggm=False,ggmCut=0.05,cc='k',ncnts=0,title=None,
-                     tsource=0,R500=0,r5col="c",zoom=1,noaxes=False,medwt=1.0):
+                     tsource=0,R500=0,r5col="c",zoom=1,noaxes=False,medwt=1.0,
+                     verbose=False):
 
     """
 
@@ -118,13 +119,15 @@ def plot_rms_general(hdul,savefile,vmin=18,vmax=318,myfs=15,rmsmap=None,nscans=N
     dy    = ylims[1] - ylims[0]
     alphas   = np.zeros(rmsmap.shape)
     if prntinfo:
-        xpos = int(np.round(xlims[1] - dx*myfs*3/100.0))
+        xpos = int(np.round(xlims[1] - dx*myfs/27.0))
+        #xpos = xlims[1] - dx*myfs/30
         ypos = int(np.round(ylims[0] ))
         txthght = int(np.round(dy*myfs/(figsize[1]*25)))
         txtwdth1 = int(np.round(dx*myfs/35.0))
         txtwdth2 = int(np.round(dx*myfs/12.0))
-        print("==========================================")
-        print(xpos,ypos,txthght,txtwdth1,dx,myfs)
+        if verbose:
+            print("==========================================")
+            print(xpos,ypos,txthght,txtwdth1,dx,myfs)
         #alphas[xpos:xpos+txtwdth1,ypos:ypos+txthght] = 0.2
         alphas[ypos:ypos+txthght,xpos:xpos+txtwdth1] = 0.9
         if tsource > 0:

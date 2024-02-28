@@ -17,3 +17,9 @@ The API is probably not  *simple* nor *intuitive*; this is under construction.
     Install <install.rst>
     Notebooks <notebooks.rst>
     API <api.rst>
+    
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
