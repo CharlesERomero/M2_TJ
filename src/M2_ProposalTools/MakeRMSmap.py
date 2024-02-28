@@ -8,7 +8,12 @@ from astropy.io import fits
 import scipy.ndimage
 
 def get_rms_cmap():
+    """
+    Tiny function to get a colormap with desired indexing, and importantly make values above or below it white.
 
+    :return: colormap
+    :rtype: object
+    """
     mycmap=cm.get_cmap('tab20b').copy()
     mydcm=cm.get_cmap('tab20b',256)
     newcolors = mydcm(np.linspace(0,1,256))
@@ -18,6 +23,15 @@ def get_rms_cmap():
     return mycmap
 
 def conv_wtmap_torms(wtmap):
+
+    """
+    Converts a weightmap to an rms map.
+
+    :param wtmap: a weightmap
+    :type wtmap: numpy.ndarray
+    :return: rmsmap
+    :rtype: numpy.ndarray
+    """
 
     gi         = (wtmap > 0)
     rmsmap     = np.zeros(wtmap.shape)
@@ -30,9 +44,14 @@ def plot_rms_general(hdul,savefile,vmin=18,vmax=318,myfs=15,rmsmap=None,nscans=N
                      cra=0,cdec=0,ggm=False,ggmCut=0.05,cc='k',ncnts=0,title=None,
                      tsource=0,R500=0,r5col="c",zoom=1,noaxes=False,medwt=1.0):
 
+    """
+
+    """
+
+    
     #norm=colors.Normalize(vmin=vmin, vmax=vmax)
     #norm=colors.LogNorm(vmin=vmin, vmax=vmax)
-    norm=colors.SymLogNorm(linthresh=40,vmin=vmin, vmax=vmax)
+    norm=colors.SymLogNorm(linthresh=vmin*2.2,vmin=vmin, vmax=vmax)
     tmin = np.round(vmin/10)*10
     tmax = 40
     lticks = np.arange(tmin,tmax+10,10)
