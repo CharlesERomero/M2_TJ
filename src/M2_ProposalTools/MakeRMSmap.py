@@ -46,7 +46,20 @@ def plot_rms_general(hdul,savefile,vmin=18,vmax=318,myfs=15,rmsmap=None,nscans=N
                      verbose=False):
 
     """
+    Make a nice image (via imshow) of the RMS map.
 
+    Parameters
+    ----------
+    hdul : list(obj)
+       Any list of objects obtained from fits.open()
+
+    savefile : str
+       A string with the full path of where to save the output image (assumed to be a png).
+
+    vmin : float
+       Minimum RMS value (in the colorbar).
+    vmax : float
+       Maximum RMS value (in the colorbar).
     """
 
     
