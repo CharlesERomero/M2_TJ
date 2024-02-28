@@ -41,7 +41,7 @@ extensions = [
     'nbsphinx',
     #'matplotlib.sphinxext.plot_directive',
     'sphinx.ext.inheritance_diagram',
-    'sphinx.ext.mathjax']
+    'sphinx.ext.mathjax'
 ]
 
 intersphinx_mapping = {
