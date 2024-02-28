@@ -21,12 +21,27 @@ version = '0.1.0'
 
 # -- General configuration
 
+master_doc = 'index'
+
 extensions = [
     'sphinx.ext.duration',
     'sphinx.ext.doctest',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
+    'sphinx.ext.todo',
+    'sphinx.ext.coverage',
+    'sphinx.ext.ifconfig',
+    'sphinx.ext.viewcode',
+    'sphinx.ext.autosummary',
+    'sphinx.ext.graphviz',
+    'sphinx.ext.autosectionlabel',
+    #'sphinxcontrib.plantuml',
+    'sphinx.ext.napoleon',
+    'nbsphinx',
+    #'matplotlib.sphinxext.plot_directive',
+    'sphinx.ext.inheritance_diagram',
+    'sphinx.ext.mathjax']
 ]
 
 intersphinx_mapping = {
