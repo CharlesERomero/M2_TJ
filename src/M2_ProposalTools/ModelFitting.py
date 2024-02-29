@@ -21,7 +21,7 @@ def fit_spherical_model(z,M500,hdul,model="NP",pink=True,alpha=2,knee=1.0/120.0,
     """
     :param z: Redshift
     :type z: float
-    :param M500: :math:`M\\_{500}`
+    :param M500: :math:`M\_{500}`
     :type M500: quantity (mass units)
     :param hdul: Astropy/fits HDU list (Make sure wtmap and img have appropriate units)
     :type hdul: list of HDU class objects 
@@ -860,21 +860,32 @@ def get_int_SNR(SNRmap,pixsize,maxRad=2.0,bv=120.0,SNRthresh=1.0):
     return SNRint,xcentre,ycentre,xymap
     
 def bin_two2Ds(independent,dependent,binsize=1,witherr=False,withcnt=False):
-
     """
-    Designed to bin up two 2D arrays, where the independent array is probably an array of radii.
+    Bins two 2D arrays based on the independent array (e.g. one of radii).
 
-    :param independent: Our independent variable
-    :type independent: np.ndarray
-    :param dependent: Our dependent variable
-    :type dependent: np.ndarray
-    :param binsize: Binsize; default is 1
-    :type binsize: float
-    :param witherr: Calculate the uncertainty of the mean. Default is False.
-    :type witherr: bool
-    :param withcnt: Record the number of pixels in each bin.. Default is False.
-    :type withcnt: bool
+    Parameters
+    ----------
+    independent : class:`numpy.ndarray`
+       An array of independent variables (e.g. radii)
+    dependent : class:`numpy.ndarray`
+       An array of dependent variables (e.g. RMS or surface brightness)
+    binsize : float
+       Binsize, relative to independent array.
+    witherr : bool
+       Calculate the corresponding uncertainties (of the mean)
+    withcnt : bool
+       Calculate the number of elements (e.g. pixels) within each bin.
 
+    Returns
+    -------
+    abin : class:`numpy.ndarray`
+       Binned absisca values
+    obin : class:`numpy.ndarray`
+       Binned ordinate values
+    oerr : class:`numpy.ndarray`
+       Binned uncertainties of the mean
+    cnts : class:`numpy.ndarray`
+       Binned counts
     """
 
     flatin = independent.flatten()

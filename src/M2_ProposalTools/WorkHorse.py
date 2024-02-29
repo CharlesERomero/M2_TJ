@@ -17,10 +17,22 @@ import sys,os
 
 from importlib import reload
 MRM=reload(MRM)
-
 defaultYM = 'A10'
 
 def inst_params(instrument):
+    """
+    Returns a Compton y profile for an input pressure profile.
+    
+    Parameters
+    ----------
+    instrument : str
+       Options are "MUSTANG", "MUSTANG2", "NIKA", "NIKA2", "BOLOCAM", and "ACT90"
+
+    Returns
+    -------
+    output : tuple
+       A tuple containing fwhm1,norm1,fwhm2,norm2,fwhm,smfw,freq,FoV
+    """
 
     if instrument == "MUSTANG":
         fwhm1 = 8.7*u.arcsec  # arcseconds
@@ -107,16 +119,49 @@ def inst_params(instrument):
 
 
 def get_d_ang(z):
+    """    
+    Parameters
+    ----------
+    z : float
+       The redshift.
+
+    Returns
+    -------
+    d_ang : quantity
+       The angular distance (with units of length)
+    """
 
     d_ang = cosmo.comoving_distance(z) / (1.0 + z)
 
     return d_ang
 
 def get_cosmo():
+    """    
+    Parameters
+    ----------
+
+    Returns
+    -------
+    cosmo : class
+       Returns a cosmo object from astropy.cosmology
+    """
 
     return cosmo
 
 def Theta500_from_M500_z(m500,z):
+    """    
+    Parameters
+    ----------
+    m500 : Quantity
+       A cluster's mass: M500
+    z : float
+       The cluster's redshift
+
+    Returns
+    -------
+    theta500 : float
+       R500 on the sky, in radians
+    """
     
     d_ang = get_d_ang(z)
     r500,p500 = R500_P500_from_M500_z(m500,z)
@@ -126,6 +171,19 @@ def Theta500_from_M500_z(m500,z):
     return r500ang.value
 
 def M500_from_R500_z(R500,z):
+    """    
+    Parameters
+    ----------
+    R500 : Quantity
+       A cluster's R500, in physical length units (e.g. kpc)
+    z : float
+       The cluster's redshift
+
+    Returns
+    -------
+    M500 : quantity
+       M500, in solar masses.
+    """
 
     dens_crit = cosmo.critical_density(z)
     E   = cosmo.H(z)/cosmo.H(0)
@@ -137,6 +195,21 @@ def M500_from_R500_z(R500,z):
     return M500
 
 def R500_P500_from_M500_z(M500,z):
+    """    
+    Parameters
+    ----------
+    m500 : Quantity
+       A cluster's mass: M500
+    z : float
+       The cluster's redshift
+
+    Returns
+    -------
+    R500 : quantity
+       R500 in physical units (e.g. kpc)
+    P500 : quantity
+       P500 in units of pressure
+    """
 
     dens_crit = cosmo.critical_density(z)
     E   = cosmo.H(z)/cosmo.H(0)
@@ -156,6 +229,26 @@ def R500_P500_from_M500_z(M500,z):
 def y_delta_from_mdelta(m_delta,z,delta=500,ycyl=False,YMrel=defaultYM,h70=1.0):
     """
     Finds A,B (scaling law terms, in get_AAA_BBB()) and applies them.
+
+    Parameters
+    ----------
+    m_delta : float
+       A cluster's mass at some delta (e.g. M500 or M2500) in solar masses, as a value.
+    z : float
+       The cluster's redshift
+    delta : float
+       Specify the delta (500 or 2500)
+    ycyl : bool
+       Do you want y_cyl or y_Sph?
+    YMrel : str
+       Which Y-M relation to use. The default is "A10" other options include "M12", "P17".
+    h70 : float
+       Confirm the Hubble parameter at z=0, relative to 70 km/s/Mpc.
+
+    Returns
+    -------
+    y_delta : float
+       The corresponding integrated Y value
     """
     
     h       = cosmo.H(z)/cosmo.H(0)
@@ -180,7 +273,23 @@ def get_AAA_BBB(YMrel,delta,ycyl=False,h70=1.0):
        (5) 'P17' (Planelles 2017)
 
     All are converted to Y = 10^BBB * M^AAA; mass (M) is in units of solar masses; Y is in Mpc^2 (i.e. with D_A^2 * E(z)^-2/3)
+
+    Parameters
+    ----------
+    YMrel : str
+       As indicated above
+    delta : float
+       The density contrast for which you want a scaling relation
+    ycyl : bool
+       Do you want a y_cyl relation or y_Sph?
+    h70 : float
+       Hubble parameter normalization.
     
+    Returns
+    -------
+    AAA,BBB : tuple
+       Scaling relation slope and normalization
+   
     """
 
     if delta == 2500:
@@ -256,10 +365,18 @@ def get_xymap(map,pixsize,xcentre=[],ycentre=[],oned=True,cpix=0):
 
     INPUTS:
     -------
-    map      - a 2D array for which you want to construct the xymap
-    pixsize  - a quantity (with units of an angle)
-    xcentre  - The number of the pixel that marks the X-centre of the map
-    ycentre  - The number of the pixel that marks the Y-centre of the map
+    map : a 2D array 
+       for which you want to construct the xymap
+    pixsize : a quantity 
+       (with units of an angle)
+    xcentre : float
+       The number of the pixel that marks the X-centre of the map
+    ycentre : float
+       The number of the pixel that marks the Y-centre of the map
+    oned : bool
+       Specify 1D for most cases pertaining to fitting models.
+    cpix : float
+       Specify if pixel indexing has an offset (e.g. 0 or 1)
 
     """
 
@@ -290,12 +407,53 @@ def get_xymap(map,pixsize,xcentre=[],ycentre=[],oned=True,cpix=0):
     return x,y
 
 def make_rmap(xymap):
+    """
+    Return a map of radii
+
+    Parameters
+    ----------
+    xymap : tuple(class:`numpy.ndarray`)
+       A tuple of x- and y-coordinates
+
+    Returns
+    -------
+    rmap : class:`numpy.ndarray`
+       A map of radii
+    """
 
     rmap = np.sqrt(xymap[0]**2 + xymap[1]**2)
 
     return rmap
 
 def make_a10_map(M500,z,xymap,Theta500,nx,ny,nb_theta_range=150,Dist=False):
+    """
+    Return a tuple of x- and y-coordinates.
+
+    Parameters
+    ----------
+    M500 : quantity
+       :math:`M\_{500}` with units of mass.
+    z : float
+       Redshift
+    xymap : tuple(class:`numpy.ndarray`)
+       A tuple of x- and y-coordinates
+    Theta500 : float
+       :math:`R\_{500}` in radians
+    nx : int
+       Number of pixels along axis 0
+    ny : int
+       Number of pixels along axis 1
+    nb_theta_range : int
+       Number of elements in an array of radii.
+    Dist : bool
+       Assume a disturbed A10 profile? Default is False
+
+    Returns
+    -------
+    ymap : class:`numpy.ndarray`
+       An output Compton y map
+
+    """
 
     minpixrad = (1.0*u.arcsec).to('rad')
     tnx       = [minpixrad.value,10.0*Theta500]  # In radians
@@ -315,6 +473,30 @@ def make_a10_map(M500,z,xymap,Theta500,nx,ny,nb_theta_range=150,Dist=False):
     return ymap
     
 def grid_profile(rads, profile, xymap, geoparams=[0,0,0,1,1,1,0,0],myscale=1.0,axis='z'):
+    """
+    Return a tuple of x- and y-coordinates.
+
+    Parameters
+    ----------
+    rads : class:`numpy.ndarray`
+       An array of radii (same units as xymap)
+    profile : class:`numpy.ndarray`
+       A radial profile of surface brightness.
+    xymap : tuple(class:`numpy.ndarray`)
+       A tuple of x- and y-coordinates
+    geoparams : array-like
+       [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
+    myscale : float
+       Generally best to leave as unity.
+    axis : str
+       Which axis are you projecting along.
+
+    Returns
+    -------
+    mymap : class:`numpy.ndarray`
+       An output map
+
+    """
 
     ### Get new grid:
     arc2rad =  4.84813681109536e-06 # arcseconds to radians
@@ -345,6 +527,21 @@ def grid_profile(rads, profile, xymap, geoparams=[0,0,0,1,1,1,0,0],myscale=1.0,a
     return mymap
 
 def rot_trans_grid(x,y,xs,ys,rot_rad):
+    """   
+    Shift and rotate coordinates
+
+    :param x: coordinate along major axis (a) 
+    :type x: class:`numpy.ndarray`
+    :param y: coordinate along minor axis (b) 
+    :type y: class:`numpy.ndarray`
+    :param xs: translation along x-axis
+    :type xs: float
+    :param ys: translation along y-axis
+    :type ys: float
+    :param rot_rad: rotation angle, in radians
+    :type rot_rad: float
+
+    """
 
     xnew = (x - xs)*np.cos(rot_rad) + (y - ys)*np.sin(rot_rad)
     ynew = (y - ys)*np.cos(rot_rad) - (x - xs)*np.sin(rot_rad)
@@ -352,17 +549,44 @@ def rot_trans_grid(x,y,xs,ys,rot_rad):
     return xnew,ynew
 
 def get_ell_rads(x,y,ella,ellb):
+    """   
+    Get ellipsoidal radii from x,y standard
 
+    :param x: coordinate along major axis (a) 
+    :type x: class:`numpy.ndarray`
+    :param y: coordinate along minor axis (b) 
+    :type y: class:`numpy.ndarray`
+    :param ella: scaling along major axis (should stay 1)
+    :type ella: float
+    :param ellb: scaling along minor axis
+    :type ella: float
+
+    """
+ 
     xnew = x/ella ; ynew = y/ellb
 
     return xnew, ynew
 
 def a10_from_m500_z(m500, z,rads,Dist=False):
     """
-    INPUTS:
-    m500    - A quantity with units of mass
-    z       - redshift.
-    rads    - A quantity array with units of distance.
+    Parameters
+    ----------
+    M500 : quantity
+       :math:`M\_{500}` with units of mass.
+    z : float
+       Redshift
+    xymap : tuple(class:`numpy.ndarray`)
+       A tuple of x- and y-coordinates
+    rads : quantity,array
+       Array of radii (with units of length)
+    Dist : bool
+       Assume a disturbed A10 profile? Default is False
+
+    Returns
+    -------
+    gnfw_prof : quantity,array
+       A radial profile with units of pressure
+
     """
     
     r500, p500 = R500_P500_from_M500_z(m500,z)
@@ -383,6 +607,24 @@ def a10_from_m500_z(m500, z,rads,Dist=False):
     return gnfw_prof
 
 def get_yProf(radii,pprof,z):
+    """
+    Parameters
+    ----------
+    radii : quantity,array
+       Array of radii (with units of length)
+    pprof : quantity,array
+       A radial profile with units of pressure
+    z : float
+       The redshift
+
+    Returns
+    -------
+    thetas : array
+       A radial profile in units of radians
+    yProf_clust : array
+       A radial profile of Compton y values
+
+    """
 
     d_ang      = get_d_ang(z)
     thetas     = (radii/d_ang).decompose().value
@@ -393,6 +635,36 @@ def get_yProf(radii,pprof,z):
     return thetas,yProf_clust
 
 def gnfw(R500, P500, radii, c500= 1.177, p=8.403, a=1.0510, b=5.4905, c=0.3081):
+    """
+    .. math::
+
+        P(r) = \\frac{P_{500} p}{(r* c_{500} / R_{500})^{\\gamma} \\left(1 + (r* c_{500} / R_{500})^{\\alpha} \\right)^{(\\beta - \\gamma)/\\alpha}}
+
+    Parameters
+    ----------
+    R500 : quantity
+       :math:`R\_{500}` with units of length.
+    P500 : quantity
+       :math:`P\_{500}` with units of pressure.
+    radii : quantity,array
+       An array of radii, with units of length
+    c500 : float
+       The concentration parameter
+    p : float
+       The pressure normalization parameter
+    a : float
+       The rollover parameter; the :math:`\\alpha` parameter
+    b : float
+       The slope at outer radii; the :math:`\\beta` parameter
+    c : float
+       The slope at inner radii; the :math:`\\gamma` parameter
+
+    Returns
+    -------
+    result : quantity,array
+       A radial profile with units of pressure
+
+    """
 
     cosmo = get_cosmo()
     h70 = (cosmo.H(0) / (70.0*u.km / u.s / u.Mpc))
@@ -405,6 +677,19 @@ def gnfw(R500, P500, radii, c500= 1.177, p=8.403, a=1.0510, b=5.4905, c=0.3081):
     return result
 
 def get_Pdl2y(z,d_ang):
+    """
+    Parameters
+    ----------
+    z : float
+       The redshift
+    d_ang : quantity
+       The angular distance; units of distance
+
+    Returns
+    -------
+    Pdl2y : float
+       A conversion factor from pressure to a unitless profile, optimal for analytic integration.
+    """
 
     szcv,szcu = get_sz_values()
     Pdl2y     = (szcu['thom_cross']*d_ang/szcu['m_e_c2']).to("cm**3 keV**-1")
@@ -412,6 +697,14 @@ def get_Pdl2y(z,d_ang):
     return Pdl2y
 
 def get_sz_values():
+    """
+    Returns
+    -------
+    szcv : dict
+       A dictionary of constant values.
+    szcu : dict
+       A dictionary of constants with units.
+    """
     ########################################################
     ### Astronomical value...
     tcmb = 2.72548*u.K # Kelvin (uncertainty = 0.00057)
@@ -443,6 +736,30 @@ def get_sz_values():
     return sz_cons_values, sz_cons_units
 
 def make_A10Map(M500,z,pixsize=2,h70=1,nb_theta_range=150,Dist=False):
+    """
+    Makes an A10 map with automated mapsize.
+
+    Parameters
+    ----------
+    M500 : quantity
+       :math:`M\_{500}` with units of mass.
+    z : float
+       Redshift
+    pixsize : float
+       Pixel size, in arcseconds
+    h70 : float
+       Normalization of the Hubble parameter.
+    nb_theta_range : int
+       Number of elements in an array of radii.
+    Dist : bool
+       Assume a disturbed A10 profile? Default is False
+
+    Returns
+    -------
+    ymap : class:`numpy.ndarray`
+       An output Compton y map
+
+    """
 
     Theta500   = Theta500_from_M500_z(M500,z)
     minpixrad  = (1.0*u.arcsec).to('rad')
@@ -459,7 +776,20 @@ def make_A10Map(M500,z,pixsize=2,h70=1,nb_theta_range=150,Dist=False):
 
 def smooth_by_M2_beam(image,pixsize=2.0):
     """
-    Smooths an image by a double Gaussian.
+    Smooths an image by a double Gaussian that is representative for MUSTANG-2.
+
+    Parameters
+    ----------
+    image: float 2D numpy array
+         2D array for which we compute the power spectrum
+    pixsize: float
+         Pixel size, in arcseconds
+
+    Returns
+    -------
+    bcmap : float 2D numpy array
+       beam-convolved map
+    
     """
 
     
@@ -478,6 +808,18 @@ def smooth_by_M2_beam(image,pixsize=2.0):
     return bcmap
 
 def get_xferfile(size):
+    """
+    Parameters
+    ----------
+    size: float
+       size of scan (radially, in arcminutes)
+
+    Returns
+    -------
+    xferfile : str
+       The corresponding file name
+    
+    """
 
     if size == 2.5:
         xferfile       = "xfer_Function_2p5_21Aonly_PCA5_0f08Filtering.txt"
@@ -495,6 +837,18 @@ def get_xferfile(size):
     return xferfile
 
 def get_xfertab(size):
+    """
+    Parameters
+    ----------
+    size: float
+       size of scan (radially, in arcminutes)
+
+    Returns
+    -------
+    tab : float 2D numpy array
+       An array containing frequency and transfer function values
+    
+    """
 
     #mypath  = "src/M2_ProposalTools/"
     path    = os.path.abspath(FI.__file__)
@@ -508,6 +862,21 @@ def get_xfertab(size):
     return tab
 
 def lightweight_filter_ptg(skymap,size,pixsize):
+    """   
+    Parameters
+    ----------
+    skymap: float 2D numpy array
+       2D image to be filtered
+    size : float
+       The size of the scan, such that the appropriate transfer function is applied.
+    pixsize: float
+       Pixel size, in arcseconds
+
+    Returns
+    -------
+    yxfer: float 2D numpy array
+       The filtered image
+    """
 
     tab   = get_xfertab(size)
     yxfer = FI.apply_xfer(skymap,tab,pixsize)
@@ -517,7 +886,42 @@ def lightweight_filter_ptg(skymap,size,pixsize):
 def lightweight_simobs_A10(z,M500,ptgs=[[180,45.0]],sizes=[3.5],times=[10.0],offsets=[1.5],
                            center=[180,45.0],xsize=12.0,ysize=12.0,pixsize=2.0,Dist=False,
                            fwhm=9.0,conv2uK=False,verbose=False):
+    """   
+    A lightweight mock observation tool. To be lightweight, everything is approximate -- but it's fast!
 
+    Parameters
+    ----------
+    z : float
+       The redshift
+    M500 : quantity
+       :math:`M\_{500}` with units of mass
+    ptgs : list(list)
+       A list of 2-element pairs (of RA and Dec, in degrees)
+    sizes : list(float)
+       A list of scan sizes, in arcminutes. Only 2.5, 3.0, 3.5, 4.0, 4.5, and 5.0 are valid.
+    times : list(float)
+       A list of integration times for corresponding pointings and scan sizes, in hours.
+    offsets : list(float)
+       A list of pointing offsets, in arcminutes.
+    center : list
+       A two-element list corresponding to the RA and Dec of the center of the map
+    xsize : float
+       The length of the map, in arcminutes, along the RA direction.
+    ysize : float
+       The length of the map, in arcminutes, along the Dec direction.
+    pixsize : float
+       The pixel size, in arcseconds
+    Dist : bool
+       Adopt a disturbed A10 model?
+    fwhm : float
+       The smoothing kernal for a resultant MIDAS map, in arcseconds. 9" is the default.
+    conv2uK : bool
+       Convert the resultant images from Compton y to microK_RJ (the standard units for MUSTANG-2 maps).
+    verbose : bool
+       Have the function print extraneous information?
+
+    """
+    
     sig2fwhm       = np.sqrt(8.0*np.log(2.0)) 
     pix_sigma      = fwhm/(pixsize*sig2fwhm)
     ymap           = make_A10Map(M500,z,pixsize=pixsize,Dist=Dist)
@@ -581,7 +985,18 @@ def lightweight_simobs_A10(z,M500,ptgs=[[180,45.0]],sizes=[3.5],times=[10.0],off
     return SkyCoadd, SkySmHDU,SkyHDU
 
 def get_SNR_map(hdul):
+    """   
+    Parameters
+    ----------
+    hdul : list of HDU class objects 
+       First extension is the image; second extension is the weightmap
 
+    Returns
+    -------
+    SNRmap : 2D numpy array
+       A signal-to-noise (ratio) map.
+    """
+    
     img    = hdul[0].data
     wtmap  = hdul[1].data
     rmsmap = MRM.conv_wtmap_torms(wtmap)
@@ -592,6 +1007,17 @@ def get_SNR_map(hdul):
     return SNRmap
 
 def get_pixarcsec(hdul):
+    """   
+    Parameters
+    ----------
+    hdul : list of HDU class objects 
+       Assumes the HDUList has a header with relevant astrometric information.
+
+    Returns
+    -------
+    pixsize : float
+       pixel size, in arcseconds
+    """
 
     wcs_inp = WCS(hdul[0].header)
     pixsize = np.sqrt(np.abs(np.linalg.det(wcs_inp.pixel_scale_matrix))) * 3600.0 # in arcseconds
@@ -599,6 +1025,27 @@ def get_pixarcsec(hdul):
     return pixsize
 
 def get_noise_realization(hdul,pink=True,alpha=2,knee=1.0/60.0,nkbin=100,fwhm=9.0):
+    """   
+    Parameters
+    ----------
+    hdul : list of HDU class objects 
+       First extension is the image; second extension is the weightmap
+    pink : bool
+       Make the noise pink (more realistic)
+    alpha : float
+       The power-law index of the red noise component.
+    knee : float
+       Where is the knee in the power spectrum, in inverse arcseconds.
+    nkbin : int
+       Number of bins in making an array of k-values.
+    fwhm : float
+       FWHM of the smoothing kernel, in arcseconds. Used to determine k_max.
+
+    Returns
+    -------
+    noise : 2D numpy array
+       A (very approximate) noise realization.
+    """
 
     #img          = hdul[0].data
     wtmap        = hdul[1].data
@@ -618,6 +1065,17 @@ def get_noise_realization(hdul,pink=True,alpha=2,knee=1.0/60.0,nkbin=100,fwhm=9.
     return noise
 
 def get_smoothing_factor(fwhm=9.0):
+    """   
+    Parameters
+    ----------
+    fwhm : float
+       FWHM of the smoothing kernel, in arcseconds. Used to determine k_max.
+
+    Returns
+    -------
+    sf : float
+       The square root of the beam volume.
+    """
 
     s2f         = np.sqrt(8.0*np.log(2.0))
     sig         = fwhm/s2f
@@ -627,6 +1085,29 @@ def get_smoothing_factor(fwhm=9.0):
     return sf
 
 def make_pinknoise_real(rmsmap,pixsize,alpha=2,knee=1.0/120.0,nkbin=100,fwhm=9.0,kmin=1.0/900.0):
+    """   
+    Parameters
+    ----------
+    rmsmap : 2D numpy array
+       A map of (white noise) RMS.
+    pixsize : float
+       Pixel size, in arcseconds
+    alpha : float
+       The power-law index of the red noise component.
+    knee : float
+       Where is the knee in the power spectrum, in inverse arcseconds.
+    nkbin : int
+       Number of bins in making an array of k-values.
+    fwhm : float
+       FWHM of the smoothing kernel, in arcseconds. Used to determine k_max.
+    kmin : float
+       The minimum k-value accessed (roughly).
+
+    Returns
+    -------
+    noise : 2D numpy array
+       A (very approximate) noise realization.
+    """
 
     nx,ny       = rmsmap.shape
     k_img       = np.logspace(np.log10(1/(pixsize*nx)),np.log10(1.0/pixsize),nkbin)
@@ -640,10 +1121,9 @@ def make_pinknoise_real(rmsmap,pixsize,alpha=2,knee=1.0/120.0,nkbin=100,fwhm=9.0
     p_init      = pixsize**2/np.pi                      # Normalization for WN
     pl_part     = (k_img/knee)**(-alpha)
     pink        = (1 + pl_part)*p_init*pink_renorm      # Full pink noise, normalized
-    cx,cy       = nx/2.0,ny/2.0
     sf          = get_smoothing_factor(fwhm=fwhm)
     
-    noise_init  = make_image(k_img,pink,nx=nx,ny=ny,cx=cx,cy=cy,pixsize=pixsize)
+    noise_init  = make_image(k_img,pink,nx=nx,ny=ny,pixsize=pixsize)
     noise       = noise_init*rmsmap*sf
 
     nzrms       = (rmsmap > 0)
@@ -652,7 +1132,28 @@ def make_pinknoise_real(rmsmap,pixsize,alpha=2,knee=1.0/120.0,nkbin=100,fwhm=9.0
 
     return noise
     
-def make_image(kbin,psbin,nx=1024,ny=1024,cx=512,cy=512,pixsize=1.0,verbose=False):
+def make_image(kbin,psbin,nx=1024,ny=1024,pixsize=1.0,verbose=False):
+    """   
+    Parameters
+    ----------
+    kbin : 1D numpy array
+       Array of frequencies (wavenumbers)
+    psbin : 1D numpy array
+       Array of power spectrum values
+    nx : int
+       Number of pixels along axis 0
+    ny : int
+       Number of pixels along axis 1
+    pixsize : float
+       Pixel size, in arcseconds
+    verbose : bool
+       Print extra things?
+
+    Returns
+    -------
+    noise : 2D numpy array
+       A (very approximate) noise realization.
+    """
 
     k,dkx,dky   = get_freqarr_2d(nx, ny, pixsize, pixsize)
     kflat       = k.flatten()
@@ -708,6 +1209,17 @@ def get_freqarr_2d(nx, ny, psx, psy):
     return k, dkx[0], dky[0]
 
 def get_cosmo_pars(z):
+    """
+    Parameters
+    ----------
+    z : float
+       The redshift
+
+    Returns
+    -------
+    cosmo_pars : dict
+       A dictionary of some cosmological parameters for a given redshift
+    """
 
     h         = cosmo.H(z)/cosmo.H(0) # aka E(z) sometimes...
     rho_crit  = cosmo.critical_density(z)
@@ -725,14 +1237,31 @@ def get_cosmo_pars(z):
 
     return cosmo_pars
     
-def rMP500_from_y500(yinteg,cosmo_pars,ySZ=True,ySph=True,YMrel=defaultYM,dopause=False):
+def rMP500_from_y500(yinteg,cosmo_pars,ySZ=True,ySph=True,YMrel=defaultYM):
     """
-    Provide h and d_a as scalars:
+    Parameters
+    ----------
+    yinteg : float
+       A particular integrated Y
+    cosmo_pars : dict
+       A dictionary of cosmological parameters for a given redshift.
+    ySZ : bool
+       Is your integrated Y coming from SZ?
+    ySph : bool
+       Is your integrated Y a spherical integration?
+    YMrel : str
+       Which scaling relation are you using?
 
-    h        - little h (the one that changes with z)
-    d_a      - angular distance, in Mpc, but just a value (not a quantity)
-    rho_crit - has units of density!!!
-
+    Returns
+    -------
+    r500 : float
+       Inferred R500, in radians
+    M500_i : quantity
+       Inferred M500, with units
+    P500 : quantity
+       Inferred P500, with units
+    msys : float
+       Inferred systematic error (value) in units of 1e14 solMass
     """
 
     h        = cosmo_pars['hofz']
@@ -766,16 +1295,29 @@ def rMP500_from_y500(yinteg,cosmo_pars,ySZ=True,ySph=True,YMrel=defaultYM,dopaus
     logy  = np.log10(lside*yinteg)
     msys = get_YM_sys_err(logy,YMrel,delta=500,ySph=ySph,h70=h70)
     
-    #print(msys)
-    if dopause:
-        import pdb;pdb.set_trace()
-    
     return r500, M500_i, P500, msys
 
 def m_delta_from_ydelta(y_delta,cosmo_pars,delta=500,ycyl=False,YMrel=defaultYM,h70=1.0):
     """
-    Basically just a repository of Y-M relations.
-    
+    Parameters
+    ----------
+    y_delta : float
+       A particular integrated Y
+    cosmo_pars : dict
+       A dictionary of cosmological parameters for a given redshift.
+    delta : float
+       Which density contrast, 500 or 2500?
+    ycyl : bool
+       Is your integrated Y a cylindrical integration?
+    YMrel : str
+       Which scaling relation are you using?
+    h70 : float
+       Hubble parameter normalization
+
+    Returns
+    -------
+    Mdelta : quantity
+       Inferred M_delta, without units
     """
     h        = cosmo_pars['hofz']
     d_a      = cosmo_pars['d_a']/1000.0
@@ -791,6 +1333,27 @@ def m_delta_from_ydelta(y_delta,cosmo_pars,delta=500,ycyl=False,YMrel=defaultYM,
     return m_delta
 
 def get_YM_sys_err(logy,YMrel,delta=500,ySph=True,h70=1.0):
+    """
+    An attempt to propagate errors based on uncertainties reported in the literature.
+
+    Parameters
+    ----------
+    logy : float
+       The base 10 logarithm of the integrated Y value
+    YMrel : str
+       Which scaling relation are you using?
+    delta : float
+       Which density contrast, 500 or 2500?
+    ySph : bool
+       Is your integrated Y a spherical integration?
+    h70 : float
+       Hubble parameter normalization
+
+    Returns
+    -------
+    xer : quantity
+       Inferred systematic error, fractional
+    """
 
     #if hasattr(logy,'__len__'):
     #    raise AttributeError
@@ -897,6 +1460,22 @@ def get_YM_sys_err(logy,YMrel,delta=500,ySph=True,h70=1.0):
     return xer
         
 def r2m_delta(radius,z,delta=500):
+    """
+
+    Parameters
+    ----------
+    radius : float
+       :math:`R_{\\delta}`
+    z : float
+       Redshift
+    delta : float
+       :math:`\\delta`
+
+    Returns
+    -------
+    M_delta : float
+       :math:`M_{\\delta}`
+    """
 
     rho_crit = cosmo.critical_density(z)
     M_delta = 4 * np.pi / 3 * (radius*u.kpc)**3 * delta * rho_crit
@@ -905,6 +1484,22 @@ def r2m_delta(radius,z,delta=500):
     return M_delta
 
 def m2r_delta(mass,z,delta=500):
+    """
+
+    Parameters
+    ----------
+    masss : float
+       :math:`M_{\\delta}`
+    z : float
+       Redshift
+    delta : float
+       :math:`\\delta`
+
+    Returns
+    -------
+    R_delta : float
+       :math:`R_{\\delta}`
+    """
 
     rho_crit = cosmo.critical_density(z)
     M_delta = mass * u.Msun   # In solar masses

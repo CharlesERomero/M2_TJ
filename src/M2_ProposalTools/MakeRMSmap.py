@@ -42,8 +42,7 @@ def conv_wtmap_torms(wtmap):
 def plot_rms_general(hdul,savefile,vmin=18,vmax=318,myfs=15,rmsmap=None,nscans=None,
                      prntinfo=False,cmark=True,ggmIsImg=False,tlo=True,wtcut=0.1,
                      cra=0,cdec=0,ggm=False,ggmCut=0.05,cc='k',ncnts=0,title=None,
-                     tsource=0,R500=0,r5col="c",zoom=1,noaxes=False,medwt=1.0,
-                     verbose=False):
+                     tsource=0,R500=0,r5col="c",zoom=1,noaxes=False,verbose=False):
 
     """
     Make a nice image (via imshow) of the RMS map.
@@ -60,8 +59,49 @@ def plot_rms_general(hdul,savefile,vmin=18,vmax=318,myfs=15,rmsmap=None,nscans=N
        Minimum RMS value (in the colorbar).
     vmax : float
        Maximum RMS value (in the colorbar).
+    myfs : float
+       Fontsize for labels and such.
+    rmsmap : numpy.ndarray
+       An 2D array constituting the RMSmap. The assumption is that ext=1 in the input hdul is the weightmap. If this is not the case, then the RMSmap can be supplied here.
+    nscans : int
+       Number of Lissajous Daisy scans to achieve integration time. (optional)
+    prntinfo : bool
+       Set this to print information on the figure.
+    cmark : bool
+       Mark the center of the cluster. To be used in tandem with cra and cdec.
+    ggmIsImg : bool
+       If ext=0 in the hdul is comprised of an image upon which a GGM filter has been applied, then set this.
+    tlo : bool
+       Hard-coded application of a tight layout for the figure.
+    wtcut : float
+       A weight cut for selecting regions in the map.
+    cra : float
+       The center RA, in degrees, if marking the center of the target.
+    cdec : float
+       The center Dec, in degrees, if marking the center of the target.
+    ggm : bool
+       Option to perform a GGM filter on the input (ext=0) image, from hdul.
+    ggmCut : float
+       Determine a minimum level of the ggm map, with respect to its maximum, for use with contours.
+    cc : str
+       Contour color.
+    ncnts : int
+       Number of contours
+    title : str
+       Provide a title for the figure, if desired.
+    tsource : float
+       Time on source (to be printed on the figure, if prntinfo is set)
+    R500 : float
+       Intended to be :math:`R_{500}` for clusters, provided in the same units as pixelsize. Can be used as a circle of interest for any target, with radius :math:`R_{500}`.
+    r5col : str
+       A string corresponding to the color of the circle to be drawn for :math:`R_{500}`, if provided.
+    zoom : float
+       If you wish to zoom in, set this to some value greater than 1.
+    noaxes : bool
+       Hide the image axes.
+    verbose : bool
+       Print a few things to stdout.
     """
-
     
     #norm=colors.Normalize(vmin=vmin, vmax=vmax)
     #norm=colors.LogNorm(vmin=vmin, vmax=vmax)
@@ -81,6 +121,8 @@ def plot_rms_general(hdul,savefile,vmin=18,vmax=318,myfs=15,rmsmap=None,nscans=N
         rmsmap = conv_wtmap_torms(wtmap)    # Convert to microK
         nzwts  = (wtmap > 0)
         medwt  = np.median(wtmap[nzwts])
+    else:
+        medwt  = 1.0
         
     w   = WCS(hdr)
     pixsize = np.sqrt(np.abs(np.linalg.det(w.pixel_scale_matrix))) * 3600.0 # in arcseconds
@@ -212,7 +254,20 @@ def plot_rms_general(hdul,savefile,vmin=18,vmax=318,myfs=15,rmsmap=None,nscans=N
 
 
 def mark_radec(ax,hdr,ra,dec):
+    """
+    Make a nice image (via imshow) of the RMS map.
 
+    Parameters
+    ----------
+    ax : axes object
+       Axes on which to make a mark
+    hdr : list(str)
+       A fits file header with astrometric information.
+    ra : float
+       Right Ascension, in degrees
+    dec : float
+       Declination, in degrees
+    """
     w     = WCS(hdr)           
     #pixs  = get_pixs(hdr)/60.0 # In arcminutes
     x0,y0 = w.wcs_world2pix(ra,dec,0)
@@ -220,6 +275,20 @@ def mark_radec(ax,hdr,ra,dec):
     ax.plot(x0,y0,'xr')
 
 def plot_circ(ax,hdr,ra,dec,goodrad,color="r",ls='--',lw=2):
+    """
+    Make a nice image (via imshow) of the RMS map.
+
+    Parameters
+    ----------
+    ax : axes object
+       Axes on which to make a mark
+    hdr : list(str)
+       A fits file header with astrometric information.
+    ra : float
+       Right Ascension, in degrees
+    dec : float
+       Declination, in degrees
+    """
 
     thetas = np.arange(181)*2*np.pi/180
     w      = WCS(hdr)           
@@ -233,7 +302,31 @@ def plot_circ(ax,hdr,ra,dec,goodrad,color="r",ls='--',lw=2):
     
 def plot_rms(hdul,rmsmap,savefile,vmin=18,vmax=318,myfs=15,nscans=None,
              prntinfo=True,cmark=True):
+    """
+    Make a nice image (via imshow) of the RMS map.
 
+    Parameters
+    ----------
+    hdul : list(obj)
+       Any list of objects obtained from fits.open()
+   rmsmap : numpy.ndarray
+       An 2D array constituting the RMSmap. The assumption is that ext=1 in the input hdul is the weightmap. If this is not the case, then the RMSmap can be supplied here.
+    savefile : str
+       A string with the full path of where to save the output image (assumed to be a png).
+
+    vmin : float
+       Minimum RMS value (in the colorbar).
+    vmax : float
+       Maximum RMS value (in the colorbar).
+    myfs : float
+       Fontsize for labels and such.
+     nscans : int
+       Number of Lissajous Daisy scans to achieve integration time. (optional)
+    prntinfo : bool
+       Set this to print information on the figure.
+    cmark : bool
+       Set this to make a center mark.
+    """
     #norm=colors.Normalize(vmin=vmin, vmax=vmax)
     #norm=colors.LogNorm(vmin=vmin, vmax=vmax)
     norm=colors.SymLogNorm(linthresh=40,vmin=vmin, vmax=vmax)
@@ -270,6 +363,19 @@ def plot_rms(hdul,rmsmap,savefile,vmin=18,vmax=318,myfs=15,nscans=None,
     myfig.savefig(savefile,format='png')
     
 def get_scanlen(scansize):
+    """
+    Return the scan duration, in minutes
+
+    Parameters
+    ----------
+    scansize : float
+       Scan size. Standard options are 2.5, 3.0, 3.5, 4.0, 4.5, or 5.0, but this routine can work for an arbitrary scan size.
+
+    Returns
+    -------
+    t_minutes: float
+       The resultant scan duration
+    """
 
     # Scansize in arcminutes
     t_minutes = 6.56365 + 0.585*scansize
@@ -278,7 +384,19 @@ def get_scanlen(scansize):
 
 def get_rmsprof_from_s(radii,s,cf=1.4):
     """
-    Mapping speeds aren't quite correct as is; correction factor, cf is correct.
+    Return the RMS (mapping speed) profile as a function of scan size.
+
+    Parameters
+    ----------
+    radii :  class:`numpy.ndarray`
+       Radii (can be 1D or 2D) in arcminutes.
+    s : float
+       Scan size. Options are 2.5, 3.0, 3.5, 4.0, 4.5, or 5.0
+
+    Returns
+    -------
+    rms: class:`numpy.ndarray`
+       The resultant rms profile
     """
 
     pars = get_mapspd_pars(s)
@@ -288,6 +406,23 @@ def get_rmsprof_from_s(radii,s,cf=1.4):
     return rms
 
 def get_rmsprofile(radii,pars,cf=1.4):
+    """
+    Return the RMS (mapping speed) profile as a function of scan size.
+
+    Parameters
+    ----------
+    radii :  class:`numpy.ndarray`
+       Radii (can be 1D or 2D) in arcminutes.
+    pars : list
+       A list of 4 parameters that describe the RMS profile.
+    cf : float
+       Factor not included in the 4 parameters.
+
+    Returns
+    -------
+    rms: class:`numpy.ndarray`
+       The resultant rms profile
+    """
     #P[0] + P[1] + P[3]*exp(R/P[2])
     rawrms = pars[0] + pars[1]*radii + pars[3]*np.exp(radii/pars[2])
     rms    =cf*rawrms
@@ -295,6 +430,20 @@ def get_rmsprofile(radii,pars,cf=1.4):
     return rms
        
 def get_mapwts(radii,pars):
+    """
+    Return the RMS (mapping speed) profile as a function of scan size.
+
+    Parameters
+    ----------
+    radii :  class:`numpy.ndarray`
+       Radii (can be 1D or 2D) in arcminutes.
+    pars : list
+       A list of 4 parameters that describe the RMS profile.
+    Returns
+    -------
+    wts: class:`numpy.ndarray`
+       The resultant weightmap
+    """
     #P[0] + P[1] + P[3]*exp(R/P[2])
     #rawrms = pars[0] + pars[1]*radii + pars[3]*np.exp(radii/pars[2])
     #rms    =cf*rawrms
@@ -302,50 +451,21 @@ def get_mapwts(radii,pars):
     wts = 1.0/rms**2
 
     return wts
-
-def make_arb_map(size,pixsize,scansz,hours,vmin=1,vmax=21):
-
-    Cy2Trj = -2.8166406800215875 # For assumed 7keV.
-    myfs    = 7
-    npix    = int(size*60/pixsize)
-    cent    = npix//2
-    x1      = np.arange(npix)
-    x       = np.outer(x1,np.ones(npix)) - cent
-    y       = x.T
-    r       = pixsize*make_rmap((x,y))/60.0 # in arcminutes
-    edge    = scansz+2.1
-    gr      = (r < edge)
-    pars    = get_mapspd_pars(scansz)
-    wts     = np.zeros(r.shape)
-    wts[gr] = get_mapwts(r[gr],pars)*hours
-    rms     = np.zeros(r.shape)
-    rms[gr] = 1.0/np.sqrt(wts[gr]) / np.abs(Cy2Trj)
-    
-    avgrms  = 1.0/np.sqrt(np.mean(wts)) / np.abs(Cy2Trj)
-
-    norm=colors.Normalize(vmin=vmin, vmax=vmax)
-    mycmap = get_rms_cmap()
-    myfig = plt.figure(1,figsize=(7,5))
-    myfig.clf()
-    ax = myfig.add_subplot(1,1,1)
-    sztit = "{:d}".format(size)+r"$^{\prime}$"
-    hrs   = "{:d}".format(int(hours))
-    mytit = sztit+r" $\times$ "+sztit+" ; "+hrs+" hours"
-    scsz =  "{:.1f}".format(scansz)+r"$^{\prime}$"
-    ax.set_title(mytit+"; Scan radius = "+scsz)
-    im = ax.imshow(rms,norm=norm,cmap=mycmap,origin="lower")
-    mycb = myfig.colorbar(im,ax=ax)
-    mycb.set_label(r"RMS, Compton $y * 10^6$",fontsize=myfs)
-    mycb.ax.tick_params(labelsize=myfs)
-    #ax.text(25,25,"{:.2f}".format(avgrms))
-    qddir = "/home/data/MUSTANG2/SimulatedObservations/QuickAndDirty/"
-    savefile=qddir+"FiveArcminuteScan_"+hrs+"hours.png"
-    myfig.savefig(savefile,format='png')
-
-    print(avgrms)
-
     
 def get_mapspd_pars(size):
+    """
+    Return parameters describing the RMS profile by scan size.
+
+    Parameters
+    ----------
+    size : float
+       Scan size. Options are 2.5, 3.0, 3.5, 4.0, 4.5, or 5.0
+
+    Returns
+    -------
+    p : list
+       A list of 4 parameters describing the RMS profile.
+    """
 
     if size == 2.5:
         p = [39.5533, 1.0000, 1.0000, 2.2500]
@@ -363,13 +483,45 @@ def get_mapspd_pars(size):
     return p
         
 def make_rmap(xymap):
+    """
+    Return a map of radii
+
+    Parameters
+    ----------
+    xymap : tuple(class:`numpy.ndarray`)
+       A tuple of x- and y-coordinates
+
+    Returns
+    -------
+    rmap : class:`numpy.ndarray`
+       A map of radii
+    """
 
     rmap = np.sqrt(xymap[0]**2 + xymap[1]**2)
 
     return rmap
         
 def make_xymap(img,hdr,ra,dec):
+    """
+    Return a tuple of x- and y-coordinates.
 
+    Parameters
+    ----------
+    img : class:`numpy.ndarray`
+       The image (or template of it) with which you are working
+    hdr : list(str)
+       A header with associated astrometric information
+    ra : float
+       Right Ascension, in degrees, to be the center of your map.
+    dec : float
+       Declination, in degrees, to be the center of your map.
+    Returns
+    -------
+    xymap : tuple(class:`numpy.ndarray`)
+       A tuple of x- and y-coordinates
+
+    """
+    
     w     = WCS(hdr)           
     pixs  = get_pixs(hdr)/60.0 # In arcminutes
     x0,y0 = w.wcs_world2pix(ra,dec,0)
@@ -388,6 +540,20 @@ def make_xymap(img,hdr,ra,dec):
     #return (dya,dxa)
 
 def get_pixs(hdr):
+    """
+    Return the pixel size in arcseconds.
+
+    Parameters
+    ----------
+    hdr : list(str)
+       A header with associated astrometric information
+
+    Returns
+    -------
+    pixs : float
+       Pixel size, in arcseconds
+
+    """
 
     if 'CDELT1' in hdr.keys():
         pixs= abs(hdr['CDELT1'] * hdr['CDELT2'])**0.5 * 3600.0    
@@ -406,6 +572,26 @@ def get_pixs(hdr):
     return pixs
 
 def reproject_fillzeros(hduin,hdrout,hdu_in=0):
+    """
+    Return a reprojected image
+
+    Parameters
+    ----------
+    hduin : class:`astropy.io.fits.HDUList`
+       A Header-Data-Unit list
+    hdrout : list(str)
+       A header with associated astrometric information
+    hduin : int
+       Specify the fits extension (HDUList index)
+
+    Returns
+    -------
+    imgout : class:`numpy.ndarray`)
+       The reprojected image
+    fpout : class:`numpy.ndarray`)
+       The footprint of the original image
+
+    """
 
     imgout, fpout = reproject_interp(hduin,hdrout,hdu_in=hdu_in)
     foo           = np.isnan(imgout)
@@ -415,6 +601,30 @@ def reproject_fillzeros(hduin,hdrout,hdu_in=0):
     return imgout, fpout
          
 def make_rms_map(hdul,ptgs,szs,time,offsets=[1.5]):
+    """
+    Return a map of RMS sensitivites based on input set of scans.
+
+    Parameters
+    ----------
+    hdul : class:`astropy.io.fits.HDUList`
+       A Header-Data-Unit list
+    ptgs : list(list)
+       A list of 2-element array-like objects containing the RA and Dec of pointings to be used.
+    szs : array_like
+       A list of scan sizes to be used.
+    time : array_like
+       A list of times to be spent with corresponding pointing and scan size
+    offsets : array_like
+       A corresponding list of scan offsets. If 0 then just a central pointing is used. If anything greater than zero, the a 4-scan offset pattern is assumed, using the given offset, in arcminutes.
+
+    Returns
+    -------
+    imgout : class:`numpy.ndarray`
+       A map of the resultant RMS
+    ns : class:`numpy.ndarray`
+       An array of the (non-rounded) number of scans required to reach the specified time(s).
+
+    """
     
     img  = hdul[0].data
     hdr  = hdul[0].header
@@ -439,6 +649,29 @@ def make_rms_map(hdul,ptgs,szs,time,offsets=[1.5]):
     return rmsmap, ns
 
 def add_to_wtmap(wtmap,hdr,p,s,t,offset=1.5):
+    """
+    For a given scan set, add weights to a given weightmap.
+
+    Parameters
+    ----------
+    wtmap : class:`numpy.ndarray`
+       A weight map.
+    hdr : list(str)
+       A header with associated astrometric information
+    p : array_like
+       A list of 2-elements containing the RA and Dec of pointings to be used.
+    s : float
+       Scan size. Options are 2.5, 3.0, 3.5, 4.0, 4.5, or 5.0
+    t : float
+       The time to be spent with corresponding pointing and scan size
+    offset : float
+       If 0 then just a central pointing is used. If anything greater than zero, the a 4-scan offset pattern is assumed, using the given offset, in arcminutes.
+
+    Returns
+    -------
+    wtmap : class:`numpy.ndarray`
+       A map of the resultant weights
+    """
 
     degoff = offset/60.0 # Offset in degrees
     if s>0:
@@ -474,6 +707,16 @@ def add_to_wtmap(wtmap,hdr,p,s,t,offset=1.5):
     return wtmap
 
 def ax_zoom(zoom,ax):
+    """
+    For a given axes object (with an image), zoom in.
+
+    Parameters
+    ----------
+    zoom : float
+       A factor by which you wish to zoom in (zoom > 1).
+    ax : class:`matplotlib.pyplot.axes`
+       The axes object with the image.
+    """
     ax_x = ax.get_xlim()
     ax_y = ax.get_ylim()
     dx   = (ax_x[1] - ax_x[0])/2
@@ -485,6 +728,30 @@ def ax_zoom(zoom,ax):
     ax.set_ylim(newy)
 
 def make_template_hdul(nx,ny,cntr,pixsize,cx=None,cy=None):
+    """
+    Return a map of RMS sensitivites based on input set of scans.
+
+    Parameters
+    ----------
+    nx : int
+       Number of pixels along axis 0
+    ny : int
+       Number of pixels along axis 1
+    cntr : array_like
+       Two-element object specifying the RA and Dec of the center.
+    pixsize : float
+       Pixel size, in arcseconds
+    cx : float
+       The pixel center along axis 0
+    cy : float
+       The pixel center along axis 1
+
+    Returns
+    -------
+    TempHDU : class:`astropy.io.fits.HDUList`
+       A Header-Data-Unit list (only one HDU)
+
+    """
 
     if cx is None:
         cx = nx/2.0
@@ -506,6 +773,28 @@ def make_template_hdul(nx,ny,cntr,pixsize,cx=None,cy=None):
     return TempHdu
 
 def calc_RMS_profile(hdul,rmsmap,Cntr,rmax=None):
+    """
+    Return a map of RMS sensitivites based on input set of scans.
+
+    Parameters
+    ----------
+    hdul : class:`astropy.io.fits.HDUList`
+       A list of HDUs
+    Cntr : array_like
+       Two-element object specifying the RA and Dec of the center.
+   rmsmap : class:`numpy.ndarray`
+       A map of achieved RMS.
+    rmax : float
+       Maximum radius out to which a profile is calculated.
+
+    Returns
+    -------
+    rbin : class:`numpy.ndarray`
+       Binned radii
+    ybin : class:`numpy.ndarray`
+       Binned RMS values
+
+    """
 
     img                    = hdul[0].data
     hdr                    = hdul[0].header
@@ -519,6 +808,34 @@ def calc_RMS_profile(hdul,rmsmap,Cntr,rmax=None):
     return rbin,ybin
 
 def bin_two2Ds(independent,dependent,binsize=1,witherr=False,withcnt=False):
+    """
+    Bins two 2D arrays based on the independent array (e.g. one of radii).
+
+    Parameters
+    ----------
+    independent : class:`numpy.ndarray`
+       An array of independent variables (e.g. radii)
+    dependent : class:`numpy.ndarray`
+       An array of dependent variables (e.g. RMS or surface brightness)
+    binsize : float
+       Binsize, relative to independent array.
+    witherr : bool
+       Calculate the corresponding uncertainties (of the mean)
+    withcnt : bool
+       Calculate the number of elements (e.g. pixels) within each bin.
+
+    Returns
+    -------
+    abin : class:`numpy.ndarray`
+       Binned absisca values
+    obin : class:`numpy.ndarray`
+       Binned ordinate values
+    oerr : class:`numpy.ndarray`
+       Binned uncertainties of the mean
+    cnts : class:`numpy.ndarray`
+       Binned counts
+
+    """
 
     flatin = independent.flatten()
     flatnt = dependent.flatten()
@@ -545,6 +862,35 @@ def bin_two2Ds(independent,dependent,binsize=1,witherr=False,withcnt=False):
     return abin,obin,oerr,cnts
 
 def bin_log2Ds(independent,dependent,nbins=10,witherr=False,withcnt=False):
+    """
+    Bins two 2D arrays based on the independent array (e.g. one of radii).
+    Do this if both arrays are better distributed in log-space.
+
+    Parameters
+    ----------
+    independent : class:`numpy.ndarray`
+       An array of independent variables (e.g. radii)
+    dependent : class:`numpy.ndarray`
+       An array of dependent variables (e.g. RMS or surface brightness)
+    nbins : float
+       Number of bins
+    witherr : bool
+       Calculate the corresponding uncertainties (of the mean)
+    withcnt : bool
+       Calculate the number of elements (e.g. pixels) within each bin.
+
+    Returns
+    -------
+    abin : class:`numpy.ndarray`
+       Binned absisca values
+    obin : class:`numpy.ndarray`
+       Binned ordinate values
+    oerr : class:`numpy.ndarray`
+       Binned uncertainties of the mean
+    cnts : class:`numpy.ndarray`
+       Binned counts
+
+    """
 
     flatin = independent.flatten()
     flatnt = dependent.flatten()
@@ -574,6 +920,24 @@ def bin_log2Ds(independent,dependent,nbins=10,witherr=False,withcnt=False):
     return abin,obin,oerr,cnts
 
 def calculate_RMS_within(Rads,RMSprof,Rmaxes=[2,3,4]):
+    """
+    Bins two 2D arrays based on the independent array (e.g. one of radii).
+    Do this if both arrays are better distributed in log-space.
+
+    Parameters
+    ----------
+    Rads : class:`numpy.ndarray`
+       An array  radii
+    RMSprof : class:`numpy.ndarray`
+       An array of RMS values
+    Rmaxes : list
+       Calculates the average RMS within circles of these radii, in arcminutes
+
+    Returns
+    -------
+    RMSwi : list
+       Average RMS within the specified radii.
+    """
 
     Variance = RMSprof**2
     Rstack   = np.hstack([0,Rads])
@@ -591,11 +955,24 @@ def calculate_RMS_within(Rads,RMSprof,Rmaxes=[2,3,4]):
 
     return RMSwi
 
-def WTF():
-
-    print("hi")
-
 def Make_ImgWtmap_HDU(HDUTemplate,Img,Wtmap):
+    """
+    Return a map of RMS sensitivites based on input set of scans.
+
+    Parameters
+    ----------
+    HDUTemplate : class:`astropy.io.fits.HDUList`
+       A list of HDUs
+    Img : class:`numpy.ndarray`
+       An image
+    Wtmap : class:`numpy.ndarray`
+       A corresponding weightmap
+
+    Returns
+    -------
+    ImgWtsHDUs : class:`astropy.io.fits.HDUList`
+       A list of HDUs; first extension is the image; second extension is the weight map.
+    """
 
     Phdu        = HDUTemplate[0]
     Phdu.data   = Img*1.0
@@ -609,6 +986,19 @@ def coaddimg_noRP(hdu1,hdu2):
     """
     This version assumes no reprojection. That is, you had better have the same astrometry between the two!
     A more general version to be written...
+
+    Parameters
+    ----------
+    hdu1 : class:`astropy.io.fits.HDUList`
+       A list of HDUs
+    hdu2 : class:`astropy.io.fits.HDUList`
+       A list of HDUs
+
+    Returns
+    -------
+    hdu1 : class:`astropy.io.fits.HDUList`
+       A list of HDUs, with the coadded image.
+
     """
 
     img1 = hdu1[0].data *1.0

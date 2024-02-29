@@ -9,11 +9,11 @@ def log_profile(args,r_bins,radii,alphas=[],rintmax=[],finite=False):
     
     r_bins and radii must be in the same units.
     :param args: values
-    :type args: numpy.ndarray
+    :type args: class:`numpy.ndarray`
     :param r_bins: bin edges
-    :type r_bins: numpy.ndarray
+    :type r_bins: class:`numpy.ndarray`
     :param radii: radial points onto which you will interpolate or extrapolate
-    :type radii: numpy.ndarray
+    :type radii: class:`numpy.ndarray`
     :param alphas: If zeros or an empty list, this function will calculate power law index between bins.
     :type alphas: array-like, optional
     :param rintmax: If zeros or an empty list, integration extends to infinity. Default is [].
@@ -127,15 +127,23 @@ def binsky(args,r_bins,theta_range,theta,inalphas=[]):
     Returns a surface brightness map for a binned profile, slopes, and radial integrals.
     
     Parameters
-    :param args: values
-    :type args: numpy.ndarray
-    :param r_bins: bin edges
-    :type r_bins: numpy.ndarray
-    __________
-    args :  Pressure for each bin used
+    ----------
+     args : class:`numpy.ndarray`
+       Pressure for each bin used
+    r_bins: class:`numpy.ndarray`
+       bin edges
+    theta_range : class:`numpy.ndarray`
+       Highly sampled array of radii.
+    theta : class:`numpy.ndarray`
+       A map of azimuthal angles.
+    inalphas : list
+       Generally best to leave as an empty list.
+
     Returns
     -------
-    out: numpy.ndarray
+    outmap: class:`numpy.ndarray`
+    alphas: class:`numpy.ndarray`
+    integrals: class:`numpy.ndarray`
     """
     Int_Pres,alphas,integrals = analytic_shells(r_bins,args,theta_range,alphas=inalphas)
     fint = interp1d(theta_range, Int_Pres, bounds_error = False, 
@@ -173,50 +181,55 @@ def integrate_profiles(epressure, geoparams,r_bins,theta_range,inalphas=[],
     Returns a Compton y profile for an input pressure profile.
     
     Parameters
-    __________
-    :param epressure     :  Electron pressure in units such that its integral over theta_range
-                           (itself in radians), results in the unitless Compton y parameter.
-    :type epressure      : np.ndarray
-    :param geoparams     :  [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
-    :type geoparams      : array-like
-    :param r_bins        :  The (elliptical) bins, in radians, for the profile. 
-    :type r_bins         : array-like
-    :param theta_range   :  The range of angles for which to create a 1D profile (which can then be interpolated)
-    :type theta_range    : np.ndarray 
-    :param inalphas      :  This should generally be an empty list, unless modelling shocks.
-    :type inalphas       : array-like, optional
-    :param beta          :  Fraction of the speed of light of the cluster bulk (peculiar) motion.
-    :type beta           : float
-    :param betaz         :  Fraction of the speed of light of the cluster along the line of sight.
-    :type betaz          : float
-    :param finint        :  Integrate out to last finite (defined) bin. Defaults to False
-    :type finint         : bool
-    :param narm          :  Normalized at R_Min. Defaults to False
-    :type narm           : bool
-    :param fixalpha      :  Fix alpha (to whatever inalpha is); useful for shocks.
-    :type fixalpha       : bool
-    :param strad         :  STrict RADii; if the pressure model has to obey strict placements of radii, use this!
-    :type strad          : bool
-    :param array         :  only used with NIKA2 data; which detector array is being used?
-    :type array          : str
-    :param fullSZcorr    :  integrate relativistic corrections along line of sight?
-    :type fullSZcorr     : bool
-    :param SZtot         :  total SZ signal... not really useful
-    :type SZtot          : bool
-    :param columnDen     :  Set to true if you want to return the column density...?
-    :type columnDen      : bool
-    :param Comptony      :  When set (by default), returns Comptony profile
-    :type Comptony       : bool
-    :param instrument    :  MUSTANG-2 by default. Used in relativistic calculations.
-    :type instrument     : str
-    :param negvals       :  Boolean array, the length of density_proxy.
-    :type negvals        : np.ndarray(dtype=bool)
+    ----------
+    epressure :  class:`numpy.ndarray`
+       Electron pressure in units such that its integral over theta_range (itself in radians), results in the unitless Compton y parameter.
+    geoparams : array-like
+       [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
+    r_bins : array-like
+       The (elliptical) bins, in radians, for the profile. 
+    theta_range : class:`numpy.ndarray` 
+       The range of angles for which to create a 1D profile (which can then be interpolated)
+    inalphas :  array-like, optional
+       This should generally be an empty list, unless modelling shocks.
+    beta :float
+       Fraction of the speed of light of the cluster bulk (peculiar) motion.
+    betaz : float
+       Fraction of the speed of light of the cluster along the line of sight.
+    finint : bool
+       Integrate out to last finite (defined) bin. Defaults to False
+    narm : bool
+       Normalized at R_Min. Defaults to False
+    fixalpha : bool
+       Fix alpha (to whatever inalpha is); useful for shocks.
+    strad : bool
+       STrict RADii; if the pressure model has to obey strict placements of radii, use this!
+    array :str
+       only used with NIKA2 data; which detector array is being used?
+    fullSZcorr : bool
+       integrate relativistic corrections along line of sight?
+    SZtot : bool
+       total SZ signal... not really useful
+    columnDen : bool
+       Set to true if you want to return the column density...?
+    Comptony : bool
+       When set (by default), returns Comptony profile
+    instrument : str
+       MUSTANG-2 by default. Used in relativistic calculations.
+    negvals : class:`numpy.ndarray`(dtype=bool)
+       Boolean array, the length of density_proxy.
+
+    Returns
+    -------
+    Int_Pres : The combined los integrals over theta_range
+    alphas : The power-law indices between bins (e.g. pressures)
+    integrals : The los integral per bin (e.g. per shell), each across theta_range
 
     Notes
     __________
     * Ella should be set to 1. Therefore, define Ellb relative to Ella (and likewise with Ellc)
-    * Xi is a parameterization in a forthcoming memo (July 2017, CR)
-    
+    * Xi is a sneaky gem.
+    * integrals allows for sneakiness.
     """
     if betaz == None:
         betaz = beta
@@ -237,12 +250,12 @@ def general_gridding(xymap,theta_range,r_bins,geoparams,finite=False,taper='norm
     """
     Returns a surface brightness map for a binned los-integrated profile (Int_Pres).
     
-    :param xymap         :  A tuple (x,y) where x and y are grids of their respective coordinates in << arceconds >>
-    :type xymap          : tuple of np.ndarray
-    :param theta_range   : Array of radii for the corresponding Int_Pres
-    :type theta_range    :  np.ndarray
-    :param geoparams   :  [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
-    :type geoparams      : array-like
+    :param xymap: A tuple (x,y) where x and y are grids of their respective coordinates in << arceconds >>
+    :type xymap: tuple of class:`numpy.ndarray`
+    :param theta_range: Array of radii for the corresponding Int_Pres
+    :type theta_range: class:`numpy.ndarray`
+    :param geoparams: [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
+    :type geoparams:array-like
 
     Notes
     __________
@@ -423,19 +436,19 @@ def grid_profile(theta_range, profile, xymap, geoparams=[0,0,0,1,1,1,0,0],myscal
     Grids a sufficiently fine-resolution profile.
 
     :param theta_range: values
-    :type theta_range: numpy.ndarray
+    :type theta_range: class:`numpy.ndarray`
     :param profile: values
-    :type profile: numpy.ndarray
-    :param xymap       :  A tuple (x,y) where x and y are grids of their respective coordinates in << arceconds >>
-    :type xymap        : tuple
-    :param geoparams   :  [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
-    :type geoparams    : array-like
-    :param myscale     :  Rescale the profile (e.g. to account for elongation along the line of sight)
-    :type myscale      : float
-    :param axis        :  scale about x, y, or z
-    :type axis         : str
-    :param xyinas      :  xymap is in arcseconds (yes)
-    :type axyinas      : bool
+    :type profile: class:`numpy.ndarray`
+    :param xymap:  A tuple (x,y) where x and y are grids of their respective coordinates in << arceconds >>
+    :type xymap: tuple
+    :param geoparams:  [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
+    :type geoparams: array-like
+    :param myscale:  Rescale the profile (e.g. to account for elongation along the line of sight)
+    :type myscale: float
+    :param axis:  scale about x, y, or z
+    :type axis: str
+    :param xyinas:  xymap is in arcseconds (yes)
+    :type axyinas: bool
 
 
     """
@@ -488,9 +501,9 @@ def get_ell_rads(x,y,ella,ellb):
     Get ellipsoidal radii from x,y standard
 
     :param x: coordinate along major axis (a) 
-    :type x: numpy.ndarray
+    :type x: class:`numpy.ndarray`
     :param y: coordinate along minor axis (b) 
-    :type y: numpy.ndarray
+    :type y: class:`numpy.ndarray`
     :param ella: scaling along major axis (should stay 1)
     :type ella: float
     :param ellb: scaling along minor axis
@@ -507,9 +520,9 @@ def rot_trans_grid(x,y,xs,ys,rot_rad):
     Shift and rotate coordinates
 
     :param x: coordinate along major axis (a) 
-    :type x: numpy.ndarray
+    :type x: class:`numpy.ndarray`
     :param y: coordinate along minor axis (b) 
-    :type y: numpy.ndarray
+    :type y: class:`numpy.ndarray`
     :param xs: translation along x-axis
     :type xs: float
     :param ys: translation along y-axis
@@ -529,9 +542,9 @@ def ycylfromprof(Int_Pres,theta_range,theta_max):
     Integrate Int_Pres over area to get y_cyl
 
     :param Int_Pres: array of Compton y values
-    :type Int_Pres: numpy.ndarray
+    :type Int_Pres: class:`numpy.ndarray`
     :param theta_range: array of radii, in radians
-    :type theta_range: numpy.ndarray
+    :type theta_range: class:`numpy.ndarray`
     :param theta_max: perform integral within this radius.
     :type theta_max: float
 
@@ -556,11 +569,11 @@ def analytic_shells(r_bins,vals,theta,alphas=[],shockxi=0.0,fixalpha=False,
     Parameters
     __________
     :param r_bins   : The radial bins (in radian, I believe)
-    :type r_bins    : np.ndarray
+    :type r_bins    : class:`numpy.ndarray`
     :param vals     :  Pressure for each bin used
-    :type vals      : np.ndarray
+    :type vals      : class:`numpy.ndarray`
     :param theta    : An array of radii (in radian) in the map, which will be used for gridding the model
-    :type theta     : np.ndarray
+    :type theta     : class:`numpy.ndarray`
     :param alphas   : An array of power laws (indices) for 3d pressure distribution
     :type alphas    : array-like
     :param shockxi  : Polar tapering, if used in a shock model.
@@ -574,11 +587,11 @@ def analytic_shells(r_bins,vals,theta,alphas=[],shockxi=0.0,fixalpha=False,
                the finite keyword is set, then this does not need to be set. 
     :type strad     : bool, optional
     :param negvals  : None by default. Otherwise, set as boolean array, same length as r_bins
-    :type negvals   : np.ndarray, optional
+    :type negvals   : class:`numpy.ndarray`, optional
 
     Returns
     -------
-    out: numpy.ndarray
+    out: class:`numpy.ndarray`
     Map convolved with the beam.          
     """
     if finite == False:
@@ -666,11 +679,11 @@ def iter_grid_profile(integrals, myrs, theta_range, xymap, geoparams=[0,0,0,1,1,
     iterative applications (same geoparams)
 
     :param integrals: array of los-integrated values (i.e. SB profiles)
-    :type integrals: np.ndarray
+    :type integrals: class:`numpy.ndarray`
     :param myrs: array of bin radii
     :type myrs: array-like
     :param theta_range: profile of radii
-    :type theta_range: np.ndarray
+    :type theta_range: class:`numpy.ndarray`
     :param xymap: tuple of arrays of x and y coordinates
     :type xymap: tuple
     :param geoparams   :  [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
@@ -725,11 +738,11 @@ def iter_grid_profile_v2(integrals, myrs, theta_range, xymap, geoparams=[0,0,0,1
     iterative applications (same geoparams)
 
     :param integrals: array of los-integrated values (i.e. SB profiles)
-    :type integrals: np.ndarray
+    :type integrals: class:`numpy.ndarray`
     :param myrs: array of bin radii
     :type myrs: array-like
     :param theta_range: profile of radii
-    :type theta_range: np.ndarray
+    :type theta_range: class:`numpy.ndarray`
     :param xymap: tuple of arrays of x and y coordinates
     :type xymap: tuple
     :param geoparams   :  [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
@@ -803,7 +816,7 @@ def shell_pl(epsnot,sindex,rmin,rmax,radarr,c=1.0,ff=1e-3,epsatrmin=0,
     :param rmax: Maximum radius for your bin. If you wish to set this to infinity, then set it to a negative value.
     :type rmax: float
     :param radarr: A radial array of projected radii (same units as RMIN and RMAX) for which projected values will be calculated. If the innermost value is zero, its value, in the scaled radius array will be set to FF.
-    :type radarr: np.ndarray
+    :type radarr: class:`numpy.ndarray`
     :param c: The scaling axis for an ellipse along the line of sight. Default is 1.0
     :type c: float
     :param ff: Fudge Factor, but more of a thresholding factor. Default is 1e-3.
@@ -906,7 +919,7 @@ def plsphere(p,rmin,rmax,radarr,tmax=0):
     :param rmax: Maximum radius for your bin. If you wish to set this to infinity, then set it to a negative value.
     :type rmax: float
     :param radarr: A radial array of projected radii (same units as RMIN and RMAX) for which projected values will be calculated. If the innermost value is zero, its value, in the scaled radius array will be set to FF.
-    :type radarr: np.ndarray
+    :type radarr: class:`numpy.ndarray`
     :param tmax: Maximum theta (from the nose - of, say, a shock).
     :type tmax: float
     """
@@ -950,7 +963,7 @@ def plshell(p,rmin,rmax,radarr,tmax=0):
     :param rmax: Maximum radius for your bin. If you wish to set this to infinity, then set it to a negative value.
     :type rmax: float
     :param radarr: A radial array of projected radii (same units as RMIN and RMAX) for which projected values will be calculated. If the innermost value is zero, its value, in the scaled radius array will be set to FF.
-    :type radarr: np.ndarray
+    :type radarr: class:`numpy.ndarray`
     :param tmax: Maximum theta (from the nose - of, say, a shock).
     :type tmax: float
     """    
@@ -1008,7 +1021,7 @@ def plsphole(p,rmin,rmax,radarr,tmax=0):
     :param rmax: Maximum radius for your bin. If you wish to set this to infinity, then set it to a negative value.
     :type rmax: float
     :param radarr: A radial array of projected radii (same units as RMIN and RMAX) for which projected values will be calculated. If the innermost value is zero, its value, in the scaled radius array will be set to FF.
-    :type radarr: np.ndarray
+    :type radarr: class:`numpy.ndarray`
     :param tmax: Maximum theta (from the nose - of, say, a shock).
     :type tmax: float
     """    
@@ -1048,7 +1061,7 @@ def plinfty(p,rmin,rmax,radarr,tmax=None):
     :param rmax: Maximum radius for your bin. If you wish to set this to infinity, then set it to a negative value.
     :type rmax: float
     :param radarr: A radial array of projected radii (same units as RMIN and RMAX) for which projected values will be calculated. If the innermost value is zero, its value, in the scaled radius array will be set to FF.
-    :type radarr: np.ndarray
+    :type radarr: class:`numpy.ndarray`
     :param tmax: Maximum theta (from the nose - of, say, a shock).
     :type tmax: float
     """    
@@ -1122,9 +1135,9 @@ def ycyl_prep(Int_Pres,theta_range):
     Just preparing some numbers.
 
     :param Int_Pres: integrated pressures
-    :type Int_Pres: np.ndarray
+    :type Int_Pres: class:`numpy.ndarray`
     :param theta_range: radii
-    :type theta_range: np.ndarray
+    :type theta_range: class:`numpy.ndarray`
 
     """
 

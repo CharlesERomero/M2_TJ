@@ -66,7 +66,30 @@ def power_spectrum_2d(arr,nbins=10,psx=1,psy=1,logbins=0):
         pkbins[idx+1] = np.std(pk[list])/np.sqrt(len(list[0]))
     return kbin,pkbin,pkbins
 
-def cross_power_spectrum_2d(arr,arr1,nbins=10,psx=1.0,psy=1.0,logbins=0):
+def cross_power_spectrum_2d(arr,arr1,nbins=10,psx=1.0,psy=1.0,logbins=False):
+    """
+    Compute 2D cross-power spectrum of arr and arr1
+    
+    Parameters
+    ----------
+    arr: float 2D numpy array
+         2D array for which we compute the power spectrum
+    arr1: float 2D numpy array
+         2D array for which we compute the power spectrum
+    nbins: integer, optional
+         number of frequency k bins (10)
+         
+    psx:  integer, optional (1)
+    psy:  integer, optional (1)
+    logbins: bool, optional (False)
+
+    Returns
+    -------
+    kbin: float 1D numpy array
+          bins in k-space
+    pkbin: float 1D numpy array
+          2D power spectrum for kbin
+    """
     nx,ny = arr.shape
     nx1,ny1 = arr1.shape
     if nx1 == nx:
@@ -90,12 +113,45 @@ def cross_power_spectrum_2d(arr,arr1,nbins=10,psx=1.0,psy=1.0,logbins=0):
     return kbin,pkbin,pkbins
 
 def fourier_conv_2d(arr,kernel):
+    """
+    From JMP; perform convolution, i.e. (arr * kernel)
+    
+    Parameters
+    ----------
+    arr: float 2D numpy array
+         input image
+    kernel: float 2D numpy array
+         input convolution kernel (real-space)
+         
+    Returns
+    -------
+    output: float 2D numpy array
+         convolved image
+
+    """
     farr = np.fft.fft2(arr)
     fker = np.fft.fft2(kernel)
     farr = farr * fker
     return np.real(np.fft.ifft2(farr))
 
 def fourier_filtering_2d(arr,filt_type,par):
+    """
+    From JMP; perform parametric Fourier filtering
+    
+    Parameters
+    ----------
+    arr: float 2D numpy array
+         input image
+    filt_type: str
+         One of "gauss", "hpcos", "lpcos", "bpcos", or "tab". The options refer to a 2D Gaussian kernel, a high-pass cosine filter, a low-pass cosine filter, a windowed (both hp and lp) cosine filter, or a tabulated filter. 
+    par: float, array-like, or tuple of arrays, depending on the filt_type.
+         
+    Returns
+    -------
+    output: float 2D numpy array
+         filtered image
+
+    """
     farr  = np.fft.fft2(arr)
     nx,ny = arr.shape
     kx    = np.outer(np.fft.fftfreq(nx),np.zeros(ny).T+1.0)
@@ -112,12 +168,44 @@ def fourier_filtering_2d(arr,filt_type,par):
     return arrfilt
 
 def gauss_filter_2d(k,par):
+    """
+    From JMP; perform parametric Fourier filtering
+    
+    Parameters
+    ----------
+    k: float 2D numpy array
+         input image
+    par: float
+        The fwhm of a 2D Gaussian.
+         
+    Returns
+    -------
+    output: float 2D numpy array
+         The filter, in Fourier space
+
+    """
     fwhm = par
     sigma = fwhm/(2.0*np.sqrt(2.0*np.log(2)))
     filter = np.exp(-2.0*k*k*sigma*sigma*np.pi*np.pi)
     return filter
 
 def lpcos_filter_2d(k,par):
+    """
+    From JMP; perform parametric Fourier filtering
+    
+    Parameters
+    ----------
+    k: float 2D numpy array
+         input image
+    par: two-element array or list
+        par[0] corresponds to the where the filter is still unity. par[1] corresponds to where the filter is zero. (par[1] > par[0])
+         
+    Returns
+    -------
+    output: float 2D numpy array
+         The filter, in Fourier space
+
+    """
     k1 = par[0]
     k2 = par[1]
     filter = k*0.0
@@ -127,6 +215,22 @@ def lpcos_filter_2d(k,par):
     return filter
 
 def hpcos_filter_2d(k,par):
+    """
+    From JMP; perform parametric Fourier filtering
+    
+    Parameters
+    ----------
+    k: float 2D numpy array
+         input image
+    par: two-element array or list
+        par[0] corresponds to the where the filter is zero. par[1] corresponds to where the filter is unity. (par[1] > par[0])
+         
+    Returns
+    -------
+    output: float 2D numpy array
+         The filter, in Fourier space
+
+    """
     k1 = par[0]
     k2 = par[1]
     filter = k*0.0
@@ -136,11 +240,43 @@ def hpcos_filter_2d(k,par):
     return filter
 
 def bpcos_filter_2d(k,par):
+    """
+    From JMP; perform parametric Fourier filtering
+    
+    Parameters
+    ----------
+    k: float 2D numpy array
+         input image
+    par: four-element array or list
+        par[0:2] is used for the high pass filter; par[2:4] is used for the low pass filter.
+         
+    Returns
+    -------
+    output: float 2D numpy array
+         The filter, in Fourier space
+
+    """
     filter = hpcos_filter_2d(k,par[0:2]) * lpcos_filter_2d(k,par[2:4])
     return filter
 
 
 def gauss_2d(sigma,nx,ny):
+    """
+    From JMP; perform parametric Fourier filtering
+    
+    Parameters
+    ----------
+    k: float 2D numpy array
+         input image
+    par: four-element array or list
+        par[0:2] is used for the high pass filter; par[2:4] is used for the low pass filter.
+         
+    Returns
+    -------
+    output: float 2D numpy array
+         The filter, in Fourier space
+
+    """
     ix =  np.outer(np.arange(nx),np.zeros(ny).T+1)-nx/2
     iy =  np.outer(np.zeros(nx)+1,np.arange(ny).T)-ny/2
     r = ix*ix+iy*iy
@@ -148,6 +284,22 @@ def gauss_2d(sigma,nx,ny):
     return fg
 
 def table_filter_2d(k,par):
+    """
+    From JMP; perform parametric Fourier filtering
+    
+    Parameters
+    ----------
+    k: float 2D numpy array
+         input image
+    par: four-element array or list
+        par[0:2] is used for the high pass filter; par[2:4] is used for the low pass filter.
+         
+    Returns
+    -------
+    output: float 2D numpy array
+         The filter, in Fourier space
+
+    """
     from scipy import interpolate
     kbin,filterbin = par
     f = interpolate.interp1d(kbin, filterbin)
@@ -160,40 +312,6 @@ def table_filter_2d(k,par):
     filter[(k > kbin_max)] = filterbin[kbin == kbin_max]
 
     return filter
-
-def fourier_filtering_1d(arr,filt_type,par,xarr=[]):
-    farr = np.fft.fft(arr)
-    if len(xarr) == 0:
-        nx = len(arr)         # it's strictly one dimensional!
-        k  =  np.fft.fftfreq(nx)
-    else:
-        nx = len(arr)         # it's strictly one dimensional!
-        raise Exception
-        
-        #    if filt_type == 'gauss': filter = gauss_filter_2d(k,par)
-#    if filt_type == 'hpcos': filter = hpcos_filter_2d(k,par)
-#    if filt_type == 'lpcos': filter = lpcos_filter_2d(k,par)
-#    if filt_type == 'bpcos': filter = bpcos_filter_2d(k,par)
-    if filt_type == 'tab': filter = table_filter_1d(k,par)
-    farr = farr * filter
-    arrfilt = np.real(np.fft.ifft(farr))
-    return arrfilt
-
-def table_filter_1d(k,par):
-    from scipy import interpolate
-    kbin,filterbin = par
-    f = interpolate.interp1d(kbin, filterbin)
-    kbin_min = kbin.min()
-    kbin_max = kbin.max()
-    
-    filter = k * 0.0
-    
-    filter[(k >= kbin_min)  & (k <= kbin_max)] = f(k[(k >= kbin_min)  & (k <= kbin_max)])   # use interpolation function returned by `interp1d`
-    filter[(k < kbin_min)] = filterbin[kbin == kbin_min]
-    filter[(k > kbin_max)] = filterbin[kbin == kbin_max]
-
-    return filter
-
 
 def apply_xfer(mymap, tab,pixsize, tabdims="1D",BSerr=False):
     """
@@ -210,16 +328,17 @@ def apply_xfer(mymap, tab,pixsize, tabdims="1D",BSerr=False):
     
     Parameters
     ----------
-    mymap       -  float 2D numpy array
-    tab         -  A tabulated (or 2D array) of the transfer function
-    tabdims     -  A string ("1D" or "2D") for the dimensions of the tabulated 
+    mymap       :  float 2D numpy array
+    tab         :  A tabulated (or 2D array) of the transfer function
+    pixsize     :  Pixel size (arcseconds)
+    tabdims     :  A string ("1D" or "2D") for the dimensions of the tabulated 
                    transfer function
-    pixsize     -  Pixel size (arcseconds)
-    BSerr       -  Attempt to fold in transfer function error; generally not used.
+    pixsize     :  Pixel size (arcseconds)
+    BSerr       :  Attempt to fold in transfer function error; generally not used.
 
     Returns
     -------
-    mapfilt     -  The filtered mymap (2D array)
+    mapfilt     :  The filtered mymap (2D array)
     """
 
     if tabdims == "1D":
@@ -242,6 +361,32 @@ def apply_xfer(mymap, tab,pixsize, tabdims="1D",BSerr=False):
     return mapfilt
 
 def get_xfer(tabfile,tabformat='ascii',tabdims="1D",tabcomments="#",instrument="MUSTANG2",tabextend=True):
+    """
+    Retrieves transfer function information from a relevant file. 
+
+    Caution
+    -------
+    The transfer functions for MUSTANG2 are only approximate
+    
+    Parameters
+    ----------
+    tabfile : str
+       A filename containing transfer function information
+    tabformat : str
+       Either "ascii' or 'fits'
+    tabdims : str 
+    A string ("1D" or "2D") for the dimensions of the tabulated transfer function
+    tabcomments : str
+       If the file is ascii, what are the comment characters?
+    instrument : str
+       For now, only "MUSTANG2" and "MUSTANG" are explicitly supported
+    tabextend : bool
+       Extrapolate to lower frequencies? Default is True
+
+    Returns
+    -------
+    tab : a 2-D array for which entries [0,:] correspond to the wavenumber (k) and entries [1,:] correspond to the transfer function values.
+    """
 
     if tabformat == 'ascii':
         tab = np.loadtxt(tabfile, comments=tabcomments)
