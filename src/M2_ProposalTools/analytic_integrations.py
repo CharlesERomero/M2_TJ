@@ -8,18 +8,25 @@ def log_profile(args,r_bins,radii,alphas=[],rintmax=[],finite=False):
     Performs logarithmic interpolation and extrapolation. This can easily be improved, but hasn't been the bottleneck.
     
     r_bins and radii must be in the same units.
-    :param args: values
-    :type args: class:`numpy.ndarray`
-    :param r_bins: bin edges
-    :type r_bins: class:`numpy.ndarray`
-    :param radii: radial points onto which you will interpolate or extrapolate
-    :type radii: class:`numpy.ndarray`
-    :param alphas: If zeros or an empty list, this function will calculate power law index between bins.
-    :type alphas: array-like, optional
-    :param rintmax: If zeros or an empty list, integration extends to infinity. Default is [].
-    :type rintmax: array-like, optional
-    :param finite: Do not integrate to infinity; stop at last value in r_bins.
-    :type finite: bool
+    Parameters
+    ----------
+    args : class:`numpy.ndarray`
+       binned values (assumed to be pressure)
+    r_bins : class:`numpy.ndarray`
+       bin edges
+    radii : class:`numpy.ndarray`
+       radial points onto which you will interpolate or extrapolate
+    alphas: array-like, optional
+       If zeros or an empty list, this function will calculate power law index between bins.
+    rintmax : array-like, optional
+       If zeros or an empty list, integration extends to infinity. Default is [].
+    finite : bool
+       Do not integrate to infinity; stop at last value in r_bins.
+
+    Returns
+    -------
+    presprof : Interpolated (pressure) profile
+    alphas : The power-law indices between bins (e.g. pressures)
     """
 
     #r_uniqe = np.unique(r_bins)
@@ -159,12 +166,23 @@ def prep_SZ_binsky(pressure, temp_iso, geoparams=None):
     """
     Small function, intended to do more (for relativistic corrections), but currently only allows for one ICM temperature.
 
-    :param pressure: array of electron pressures
-    :type pressure: array-like
-    :param temp_iso: isothermal temperature
-    :type temp_iso: float
-    :param geoparams: [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
-    :type geoparams: array-like
+    Parameters
+    ----------
+    pressure : array-like
+        array of electron pressures
+    temp_iso : float
+       isothermal temperature
+    geoparams : array-like
+        [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
+
+    Returns
+    -------
+    edensity: class:`numpy.ndarray`
+       Proxy for electron density (per cubic cm)
+    etemperature: class:`numpy.ndarray`
+       Proxy for electron temperature (times Bolzmann Constant; keV)
+    geoparams: array-like
+       [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
     """
     edensity = np.array(pressure) / temp_iso
     etemperature = np.array(pressure)*0 + temp_iso
@@ -221,9 +239,12 @@ def integrate_profiles(epressure, geoparams,r_bins,theta_range,inalphas=[],
 
     Returns
     -------
-    Int_Pres : The combined los integrals over theta_range
-    alphas : The power-law indices between bins (e.g. pressures)
-    integrals : The los integral per bin (e.g. per shell), each across theta_range
+    Int_Pres : class:`numpy.ndarray`
+       The combined los integrals over theta_range
+    alphas : class:`numpy.ndarray`
+       The power-law indices between bins (e.g. pressures)
+    integrals : class:`numpy.ndarray`
+       The los integral per bin (e.g. per shell), each across theta_range
 
     Notes
     __________
@@ -250,18 +271,23 @@ def general_gridding(xymap,theta_range,r_bins,geoparams,finite=False,taper='norm
     """
     Returns a surface brightness map for a binned los-integrated profile (Int_Pres).
     
-    :param xymap: A tuple (x,y) where x and y are grids of their respective coordinates in << arceconds >>
-    :type xymap: tuple of class:`numpy.ndarray`
-    :param theta_range: Array of radii for the corresponding Int_Pres
-    :type theta_range: class:`numpy.ndarray`
-    :param geoparams: [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
-    :type geoparams:array-like
+    Parameters
+    ----------
+    xymap: tuple of class:`numpy.ndarray`
+       A tuple (x,y) where x and y are grids of their respective coordinates in << arceconds >>
+    theta_range: class:`numpy.ndarray`
+       Array of radii for the corresponding Int_Pres
+    geoparams:array-like
+       [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
 
     Notes
     __________
     * Ella should be set to 1. Therefore, define Ellb relative to Ella (and likewise with Ellc)
-    * Xi is a parameterization in a forthcoming memo (July 2017, CR)
     
+    Returns
+    -------
+    mymap : class:`numpy.ndarray`
+       A 2D map from input radial surface brightness profile
     """
     
     if geoparams[6] > 0.0:
@@ -325,35 +351,38 @@ def binsky_SZ_general(epressure, geoparams,r_bins,theta_range,xymap,
     Returns a surface brightness map for a binned profile fit, with far more generality than previously done.
     
     Parameters
-    __________
-    :param epressure   :  The electron pressure (no units in Python, but otherwise should be in cm**-3 keV**-1)
-    :type epressure    : array-like
-    :param geoparams   :  [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
-    :type geoparams    : array-like
-    :param r_bins      :  The (elliptical) bins for the profile. 
-    :type r_bins       : array-like
-    :param theta_range :  The range of angles for which to create a 1D profile (which can then be interpolated)
-    :type theta_range  : array-like
-    :param xymap       :  A tuple (x,y) where x and y are grids of their respective coordinates in << arceconds >>
-    :type xymap        : tuple
-    :param inalphas    :  Nothing to see here. Move along.
-    :type inalphas     : array-like
-    :param beta        :  Fraction of the speed of light of the cluster bulk (peculiar) motion.
-    :type beta         : float
-    :param betaz       :  Fraction of the speed of light of the cluster along the line of sight.
-    :type betaz        : float
-    :param finite      :  Integrate out to last finite (defined) bin.
-    :type finite       : bool
-    :param narm        :  Normalized at R_Min. This is important for integrating shells.
-    :type narm         : bool
-    :param strad       :  STrict RADii; if the pressure model has to obey strict placements of radii, use this!
-    :type strad        : bool
+    ----------
+    epressure : array-like
+       The electron pressure (no units in Python, but otherwise should be in cm**-3 keV**-1)
+    geoparams : array-like
+       [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
+    r_bins : array-like
+       The (elliptical) bins for the profile. 
+    theta_range : class:`numpy.ndarray`
+       Array of radii for the corresponding Int_Pres
+    xymap : tuple of class:`numpy.ndarray`
+       A tuple (x,y) where x and y are grids of their respective coordinates in << arceconds >>
+    inalphas : array-like
+       Nothing to see here. Move along.
+    beta : float
+       Fraction of the speed of light of the cluster bulk (peculiar) motion.
+    betaz : float
+       Fraction of the speed of light of the cluster along the line of sight.
+    finite : bool
+       Integrate out to last finite (defined) bin.
+    narm : bool
+       Normalized at R_Min. This is important for integrating shells.
+    strad : bool
+       STrict RADii; if the pressure model has to obey strict placements of radii, use this!
 
     Notes
     __________
     * Ella should be set to 1. Therefore, define Ellb relative to Ella (and likewise with Ellc)
-    * Xi is a parameterization in a forthcoming memo (July 2017, CR)
     
+    Returns
+    -------
+    mymap : class:`numpy.ndarray`
+       A 2D map from input radial surface brightness profile   
     """
     if betaz == None:
         betaz = beta
@@ -377,28 +406,28 @@ def binsky_general(vals,geoparams,r_bins,theta_range,xymap,inalphas=[],
     
     Parameters
     __________
-    :param vals        :  The electron pressure (no units in Python, but otherwise should be in cm**-3 keV**-1)
-    :type vals         : array-like
-    :param geoparams   :  [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
-    :type geoparams    : array-like
-    :param r_bins      :  The (elliptical) bins for the profile. 
-    :type r_bins       : array-like
-    :param theta_range :  The range of angles for which to create a 1D profile (which can then be interpolated)
-    :type theta_range  : array-like
-    :param xymap       :  A tuple (x,y) where x and y are grids of their respective coordinates in << arceconds >>
-    :type xymap        : tuple
-    :param inalphas    :  Nothing to see here. Move along.
-    :type inalphas     : array-like
-    :param beta        :  Fraction of the speed of light of the cluster bulk (peculiar) motion.
-    :type beta         : float
-    :param betaz       :  Fraction of the speed of light of the cluster along the line of sight.
-    :type betaz        : float
-    :param finite      :  Integrate out to last finite (defined) bin.
-    :type finite       : bool
-    :param narm        :  Normalized at R_Min. This is important for integrating shells.
-    :type narm         : bool
-    :param strad       :  STrict RADii; if the pressure model has to obey strict placements of radii, use this!
-    :type strad        : bool
+    vals : array-like
+       The electron pressure (no units in Python, but otherwise should be in cm**-3 keV**-1)
+    geoparams : array-like
+       [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
+    r_bins : array-like
+       The (elliptical) bins for the profile. 
+    theta_range  : array-like
+       The range of angles for which to create a 1D profile (which can then be interpolated)
+    xymap : tuple
+       A tuple (x,y) where x and y are grids of their respective coordinates in << arceconds >>
+    inalphas : array-like
+       Nothing to see here. Move along.
+    beta : float
+       Fraction of the speed of light of the cluster bulk (peculiar) motion.
+    betaz : float
+       Fraction of the speed of light of the cluster along the line of sight.
+    finite : bool
+       Integrate out to last finite (defined) bin.
+    narm : bool
+       Normalized at R_Min. This is important for integrating shells.
+    strad : bool
+       STrict RADii; if the pressure model has to obey strict placements of radii, use this!
     
     Notes:
     __________
@@ -407,7 +436,8 @@ def binsky_general(vals,geoparams,r_bins,theta_range,xymap,inalphas=[],
     
     Returns
     -------
-    A map that accounts for a range of geometrical restrictions. The integrals may not be applicable.
+    mymap : class:`numpy.ndarray`
+       A map that accounts for a range of geometrical restrictions. The integrals may not be applicable.
 
     """
 
@@ -435,25 +465,28 @@ def grid_profile(theta_range, profile, xymap, geoparams=[0,0,0,1,1,1,0,0],myscal
     """   
     Grids a sufficiently fine-resolution profile.
 
-    :param theta_range: values
-    :type theta_range: class:`numpy.ndarray`
-    :param profile: values
-    :type profile: class:`numpy.ndarray`
-    :param xymap:  A tuple (x,y) where x and y are grids of their respective coordinates in << arceconds >>
-    :type xymap: tuple
-    :param geoparams:  [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
-    :type geoparams: array-like
-    :param myscale:  Rescale the profile (e.g. to account for elongation along the line of sight)
-    :type myscale: float
-    :param axis:  scale about x, y, or z
-    :type axis: str
-    :param xyinas:  xymap is in arcseconds (yes)
-    :type axyinas: bool
+    Parameters
+    __________
+    theta_range: class:`numpy.ndarray`
+       Abscisca (radii, in radians) for profile
+    profile: class:`numpy.ndarray`
+       Ordinate profile values
+    xymap: tuple
+       A tuple (x,y) where x and y are grids of their respective coordinates in << arceconds >>
+    geoparams: array-like
+       [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
+    myscale: float
+       Rescale the profile (e.g. to account for elongation along the line of sight)
+    axis: str
+       scale about x, y, or z
+    xyinas: bool
+       xymap is in arcseconds (yes)
 
-
+    Returns
+    -------
+    mymap : class:`numpy.ndarray`
+       A map that accounts for a range of geometrical restrictions.
     """
-
-
     
     ### Get new grid:
     (x,y) = xymap
@@ -500,6 +533,8 @@ def get_ell_rads(x,y,ella,ellb):
     """   
     Get ellipsoidal radii from x,y standard
 
+    Parameters
+    __________
     :param x: coordinate along major axis (a) 
     :type x: class:`numpy.ndarray`
     :param y: coordinate along minor axis (b) 
@@ -519,8 +554,10 @@ def rot_trans_grid(x,y,xs,ys,rot_rad):
     """   
     Shift and rotate coordinates
 
-    :param x: coordinate along major axis (a) 
-    :type x: class:`numpy.ndarray`
+    Parameters
+    __________
+    x: class:`numpy.ndarray`
+       coordinate along major axis (a) 
     :param y: coordinate along minor axis (b) 
     :type y: class:`numpy.ndarray`
     :param xs: translation along x-axis
@@ -541,6 +578,8 @@ def ycylfromprof(Int_Pres,theta_range,theta_max):
     """
     Integrate Int_Pres over area to get y_cyl
 
+    Parameters
+    __________
     :param Int_Pres: array of Compton y values
     :type Int_Pres: class:`numpy.ndarray`
     :param theta_range: array of radii, in radians
@@ -568,31 +607,29 @@ def analytic_shells(r_bins,vals,theta,alphas=[],shockxi=0.0,fixalpha=False,
     
     Parameters
     __________
-    :param r_bins   : The radial bins (in radian, I believe)
-    :type r_bins    : class:`numpy.ndarray`
-    :param vals     :  Pressure for each bin used
-    :type vals      : class:`numpy.ndarray`
-    :param theta    : An array of radii (in radian) in the map, which will be used for gridding the model
-    :type theta     : class:`numpy.ndarray`
-    :param alphas   : An array of power laws (indices) for 3d pressure distribution
-    :type alphas    : array-like
-    :param shockxi  : Polar tapering, if used in a shock model.
-    :type shockxi   : float
-    :param finite   : Set this keyword if you do NOT want to integrate to infinity.
-    :type finite    : bool
-    :param narm     :  Normalize at R_min (within a bin)
-    :type narm      : bool
-    :param strad    : STrict RADii. When using a shock model (e.g. Abell 2146), where specific radii,
-               ESPECIALLY inner radii are defined, this keyword SHOULD be set! Note that if
-               the finite keyword is set, then this does not need to be set. 
-    :type strad     : bool, optional
-    :param negvals  : None by default. Otherwise, set as boolean array, same length as r_bins
-    :type negvals   : class:`numpy.ndarray`, optional
+    r_bins    : class:`numpy.ndarray`
+       The radial bins (in radians)
+    vals      : class:`numpy.ndarray`
+       Pressure for each bin used
+    theta     : class:`numpy.ndarray`
+       An array of radii (in radian) in the map, which will be used for gridding the model
+    alphas    : array-like
+       An array of power laws (indices) for 3d pressure distribution
+    shockxi   : float
+       Polar tapering, if used in a shock model.
+    finite    : bool
+        Set this keyword if you do NOT want to integrate to infinity.
+    narm      : bool
+       Normalize at R_min (within a bin)
+    strad     : bool, optional
+       STrict RADii. When using a shock model (e.g. Abell 2146), where specific radii, especially inner radii are defined, this keyword should be set! Note that if the finite keyword is set, then this does not need to be set. 
+    negvals   : class:`numpy.ndarray`, optional
+       None by default. Otherwise, set as boolean array, same length as r_bins
 
     Returns
     -------
-    out: class:`numpy.ndarray`
-    Map convolved with the beam.          
+    out       : class:`numpy.ndarray`
+       Map convolved with the beam.          
     """
     if finite == False:
         iadj = 0

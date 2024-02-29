@@ -1,9 +1,10 @@
   M2\_ProposalTools package
-=================
+===========================
 
 .. autosummary::
    :toctree: generated
-
+   :maxdepth: 2
+	      
    M2_ProposalTools
    
 Submodules

@@ -931,7 +931,6 @@ def lightweight_simobs_A10(z,M500,ptgs=[[180,45.0]],sizes=[3.5],times=[10.0],off
     SkyHDU[0].data = mymap*1.0
     Skyhdr         = SkyHDU[0].header
     SkyCoadd       = MRM.make_template_hdul(nx,ny,center,pixsize)
-    MRM.WTF()
 
     SkyCoadd       = MRM.Make_ImgWtmap_HDU(SkyCoadd,np.zeros((nx,ny)),np.zeros((nx,ny)))
 
