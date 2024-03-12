@@ -42,7 +42,8 @@ def conv_wtmap_torms(wtmap):
 def plot_rms_general(hdul,savefile,vmin=18,vmax=318,myfs=15,rmsmap=None,nscans=None,
                      prntinfo=False,cmark=True,ggmIsImg=False,tlo=True,wtcut=0.1,
                      cra=0,cdec=0,ggm=False,ggmCut=0.05,cc='k',ncnts=0,title=None,
-                     tsource=0,R500=0,r5col="c",zoom=1,noaxes=False,verbose=False):
+                     tsource=0,R500=0,r5col="c",zoom=1,noaxes=False,verbose=False,
+                     imgext=0,ggmPix=5.0,mask=None):
 
     """
     Make a nice image (via imshow) of the RMS map.
@@ -70,7 +71,7 @@ def plot_rms_general(hdul,savefile,vmin=18,vmax=318,myfs=15,rmsmap=None,nscans=N
     cmark : bool
        Mark the center of the cluster. To be used in tandem with cra and cdec.
     ggmIsImg : bool
-       If ext=0 in the hdul is comprised of an image upon which a GGM filter has been applied, then set this.
+       If you want to display the GGM image instead of the RMS map, set this
     tlo : bool
        Hard-coded application of a tight layout for the figure.
     wtcut : float
@@ -80,7 +81,7 @@ def plot_rms_general(hdul,savefile,vmin=18,vmax=318,myfs=15,rmsmap=None,nscans=N
     cdec : float
        The center Dec, in degrees, if marking the center of the target.
     ggm : bool
-       Option to perform a GGM filter on the input (ext=0) image, from hdul.
+       Option to perform a GGM filter on the input (ext=imgext) image, from hdul.
     ggmCut : float
        Determine a minimum level of the ggm map, with respect to its maximum, for use with contours.
     cc : str
@@ -101,6 +102,8 @@ def plot_rms_general(hdul,savefile,vmin=18,vmax=318,myfs=15,rmsmap=None,nscans=N
        Hide the image axes.
     verbose : bool
        Print a few things to stdout.
+    imgext : int
+       Extension of the image (to show, or of which to take the GGM). Default is 0.
     """
     
     #norm=colors.Normalize(vmin=vmin, vmax=vmax)
@@ -114,8 +117,8 @@ def plot_rms_general(hdul,savefile,vmin=18,vmax=318,myfs=15,rmsmap=None,nscans=N
     myticks = np.hstack((lticks,lgticks))
     mycmap = get_rms_cmap()
 
-    img = hdul[0].data
-    hdr = hdul[0].header
+    img = hdul[imgext].data
+    hdr = hdul[imgext].header
     if rmsmap is None:
         wtmap  = hdul[1].data
         rmsmap = conv_wtmap_torms(wtmap)    # Convert to microK
@@ -140,13 +143,15 @@ def plot_rms_general(hdul,savefile,vmin=18,vmax=318,myfs=15,rmsmap=None,nscans=N
     minrms = np.min(rmsmap[gi])
 
     if ggm:
-        ggmImg = scipy.ndimage.gaussian_gradient_magnitude(img*1e6,2.0)
+        ggmImg = scipy.ndimage.gaussian_gradient_magnitude(img*1e6,ggmPix)
+        if not mask is None:
+            ggmImg = ggmImg*mask
         #im     = ax.imshow(ggmImg,cmap=mycmap)
         ggmMax = np.max(ggmImg)
         gi     = (ggmImg > ggmMax*ggmCut)
         ggmStd = np.std(ggmImg[gi])
         if ncnts > 0:
-            clvls  = np.logspace(np.log10(ggmStd*3),np.log10(ggmMax),ncnts)
+            clvls  = np.logspace(np.log10(ggmStd*2),np.log10(ggmMax),ncnts)
         else:
             clvls  = np.arange(ggmStd*3,ggmMax,ggmStd)
     else:
@@ -382,7 +387,7 @@ def get_scanlen(scansize):
 
     return t_minutes
 
-def get_rmsprof_from_s(radii,s,cf=1.4):
+def get_rmsprof_from_s(radii,s,WIKID=False):
     """
     Return the RMS (mapping speed) profile as a function of scan size.
 
@@ -399,13 +404,12 @@ def get_rmsprof_from_s(radii,s,cf=1.4):
        The resultant rms profile
     """
 
-    pars = get_mapspd_pars(s)
-    rawrms = pars[0] + pars[1]*radii + pars[3]*np.exp(radii/pars[2])
-    rms    =cf*rawrms
+    pars = get_mapspd_pars(s,WIKID=WIKID)
+    rms  = get_rmsprofile(radii,pars,s)
     
     return rms
 
-def get_rmsprofile(radii,pars,cf=1.4):
+def get_rmsprofile(radii,pars,size,cf=np.sqrt(2)):
     """
     Return the RMS (mapping speed) profile as a function of scan size.
 
@@ -415,7 +419,9 @@ def get_rmsprofile(radii,pars,cf=1.4):
        Radii (can be 1D or 2D) in arcminutes.
     pars : list
        A list of 4 parameters that describe the RMS profile.
-    cf : float
+    size : float
+       Scan size, in arcminutes.
+    cf : float, optional
        Factor not included in the 4 parameters.
 
     Returns
@@ -424,12 +430,16 @@ def get_rmsprofile(radii,pars,cf=1.4):
        The resultant rms profile
     """
     #P[0] + P[1] + P[3]*exp(R/P[2])
-    rawrms = pars[0] + pars[1]*radii + pars[3]*np.exp(radii/pars[2])
+    if len(pars) == 4:
+        rawrms = pars[0] + pars[1]*radii + pars[3]*np.exp(radii/pars[2])
+    else:
+        rawrms = pars[0] + pars[1]*np.exp((radii/size))**2
+        
     rms    =cf*rawrms
     
     return rms
        
-def get_mapwts(radii,pars):
+def get_mapwts(radii,pars,s):
     """
     Return the RMS (mapping speed) profile as a function of scan size.
 
@@ -447,12 +457,13 @@ def get_mapwts(radii,pars):
     #P[0] + P[1] + P[3]*exp(R/P[2])
     #rawrms = pars[0] + pars[1]*radii + pars[3]*np.exp(radii/pars[2])
     #rms    =cf*rawrms
-    rms = get_rmsprofile(radii,pars)
+    rms = get_rmsprofile(radii,pars,s)
     wts = 1.0/rms**2
 
     return wts
     
-def get_mapspd_pars(size):
+def get_mapspd_pars(size,WIKID=False):
+    #rawrms = pars[0] + pars[1]*radii + pars[3]*np.exp(radii/pars[2])
     """
     Return parameters describing the RMS profile by scan size.
 
@@ -479,6 +490,18 @@ def get_mapspd_pars(size):
         p = [28.5789, 3.0000, 3.0000, 20.8500]
     if size == 5.0:
         p = [43.2951, 3.5000, 3.5000, 25.5000]
+
+    if WIKID:
+        #print(p)
+        p[0] = p[0]/10.0
+        p[1] = p[1]/2.0
+        p[2] = p[2]*2.0
+        p[3] = p[3]/2.0
+        if size == 3.5:
+            #print("Heya")
+            p = [11.2, 0.2]
+        #print(p)
+        ### To be confirmed
 
     return p
         
@@ -648,7 +671,7 @@ def make_rms_map(hdul,ptgs,szs,time,offsets=[1.5]):
 
     return rmsmap, ns
 
-def add_to_wtmap(wtmap,hdr,p,s,t,offset=1.5):
+def add_to_wtmap(wtmap,hdr,p,s,t,offset=1.5,WIKID=False):
     """
     For a given scan set, add weights to a given weightmap.
 
@@ -674,16 +697,17 @@ def add_to_wtmap(wtmap,hdr,p,s,t,offset=1.5):
     """
 
     degoff = offset/60.0 # Offset in degrees
+    rFOV   = 4.2 if WIKID else 2.1
     if s>0:
-        pars = get_mapspd_pars(s)
+        pars = get_mapspd_pars(s,WIKID=WIKID)
         xymap = make_xymap(wtmap,hdr,p[0],p[1])
         rmap  = make_rmap(xymap)
-        edge  = (s+2.1) # arcseconds
+        edge  = (s+rFOV) # arcseconds
         gi = (rmap < edge)
-        wts = get_mapwts(rmap[gi],pars)
+        wts = get_mapwts(rmap[gi],pars,s)
         wtmap[gi] = wtmap[gi]+wts*t
     else:
-        pars   = get_mapspd_pars(-s)
+        pars   = get_mapspd_pars(-s,WIKID=WIKID)
         cosdec = np.cos(p[1]*np.pi/180.0)
         #if offset > 0:
         for i in range(4):
@@ -691,9 +715,9 @@ def add_to_wtmap(wtmap,hdr,p,s,t,offset=1.5):
             newy = p[1] + np.sin(np.pi*i/2)*degoff
             xymap = make_xymap(wtmap,hdr,newx,newy)
             rmap  = make_rmap(xymap) # arcminutes
-            edge  = (2.1-s) # arcminutes
+            edge  = (rFOV-s) # arcminutes
             gi = (rmap < edge)
-            wts = get_mapwts(rmap[gi],pars)
+            wts = get_mapwts(rmap[gi],pars,-s)
             wtmap[gi] = wtmap[gi]+wts*t/4.0
         #else:
         #    xymap = make_xymap(wtmap,hdr,p[0],p[1])

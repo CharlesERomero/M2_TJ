@@ -10,13 +10,14 @@ from scipy.interpolate import interp1d
 from astropy.wcs import WCS
 import matplotlib.pyplot as plt
 import scipy.special as scs
+import M2_ProposalTools.FilterImages as FI
 
 WH=reload(WH)
     
 
 def fit_spherical_model(z,M500,hdul,model="NP",pink=True,alpha=2,knee=1.0/120.0,nkbin=100,fwhm=9.0,nsteps=1000,
-                        y2k=-3.3,uKinput=True,ySph=True,YMrel="A10",outdir="/home/data/",outbase="NP_fit_corner.png",
-                        size=3.5,Dist=False,plotPin=True,adPhys=True):
+                        y2k=-3.4,uKinput=True,ySph=True,YMrel="A10",outdir="/home/data/",outbase="NP_fit_corner.png",
+                        size=3.5,Dist=False,plotPin=True,adPhys=True,WIKID=False):
 
     """
     :param z: Redshift
@@ -39,7 +40,7 @@ def fit_spherical_model(z,M500,hdul,model="NP",pink=True,alpha=2,knee=1.0/120.0,
     :type fwhm: float
     :param nsteps: Number of steps to use in MCMC.
     :type nsteps: int
-    :param y2k: Conversion factor between Compton y and Kelvin_RJ (for MUSTANG-2). Default is -3.3.
+    :param y2k: Conversion factor between Compton y and Kelvin_RJ (for MUSTANG-2). Default is -3.4.
     :type y2k: float
     :param uKinput: The input map is taken to be in units of microKelvin_RJ if set.
     :type uKinput: bool
@@ -78,7 +79,7 @@ def fit_spherical_model(z,M500,hdul,model="NP",pink=True,alpha=2,knee=1.0/120.0,
 
     efv        = get_emcee_fit_vars(CosmoPars,M500,intSNR,xc,yc,pixsize,outdir,
                                     MinRes=pixsize/2.0,model=model,ySph=ySph,YMrel=YMrel,size=size,
-                                    Dist=Dist)
+                                    Dist=Dist,WIKID=WIKID)
     mask         = automated_mask(xymap,CosmoPars,efv)
 
     hdul[0].data = hdul[0].data + Noise
@@ -101,7 +102,8 @@ def automated_mask(xymap,cosmo_pars,efv):
 
 def get_emcee_fit_vars(cosmo_pars,M500,SNRint,xc,yc,pixsize,outdir,
                        MinRes=1.0,model="NP",ySph=True,YMrel="A10",nb_theta_range=150,SNRperbin=4.0,
-                       n_at_rmin=False,fit_mnlvl=True,fit_cen=True,fit_geo=False,size=3.5,Dist=False):
+                       n_at_rmin=False,fit_mnlvl=True,fit_cen=True,fit_geo=False,size=3.5,Dist=False,
+                       WIKID=False):
     """
     :param cosmo_pars: a dictionary of cosmological parameters
     :type cosmo_pars: dict
@@ -162,7 +164,11 @@ def get_emcee_fit_vars(cosmo_pars,M500,SNRint,xc,yc,pixsize,outdir,
         
     radmin      = 5.0 *np.pi / (180*3600)                # 5" in radians
     radminmax   = np.array( [radmin,Theta500] )          # Between 5" and R500, in radians
-    #print(radminmax,nBins,SNRint,SNRperbin)
+    nMax        = np.floor(Theta500*3600*180/np.pi/12.0) # I want a bit larger than 10" bins.
+    if nBins >= nMax:
+        radminmax   = np.array( [radmin,Theta500*1.5] )          # Between 5" and R500, in radians
+        nBins       = int(np.round(nMax))-2
+    print(radminmax,nBins,SNRint,SNRperbin)
     #import pdb;pdb.set_trace()
     
     bins        = improved_bin_spacing(radminmax,nBins,mway=False) # in radians
@@ -220,7 +226,8 @@ def get_emcee_fit_vars(cosmo_pars,M500,SNRint,xc,yc,pixsize,outdir,
                    "M500":M500,"Theta500":Theta500,"YMrel":YMrel,"bins":bins,"nBins":nBins,"fit_mnlvl":fit_mnlvl,
                    "fit_cen":fit_cen,"fit_geo":fit_geo,"narm":n_at_rmin,"fixalpha":False,"finite":False,
                    "pinit":myval,"sbepos":sbepos,"pixsize":pixsize,"labels":labels,"outdir":outdir,
-                   "size":size,"Mstr":Mstr,"zstr":zstr,"lowbnd":lowbnd,"uppbnd":uppbnd,"Dist":Dist}    
+                   "size":size,"Mstr":Mstr,"zstr":zstr,"lowbnd":lowbnd,"uppbnd":uppbnd,"Dist":Dist,
+                   "WIKID":WIKID}    
 
     return efv
 
@@ -244,11 +251,15 @@ def run_emcee(hdul,cosmo_pars,efv,xymap,outfile,BSerr=False,nsteps=1000,plotPin=
     :type nsteps: int
 
     """
-    
+
+    # Call this once outside of the MCMC
+    tab = WH.get_xfertab(efv["size"],WIKID=efv["WIKID"])
 
     def lnlike(pos):                          ### emcee_fitting_vars
         outmap,yint,outalpha,mnlvl = make_skymodel_map(hdul,pos,cosmo_pars,efv,xymap)
-        model   = WH.lightweight_filter_ptg(outmap,efv["size"],efv["pixsize"]) + mnlvl
+        #model   = WH.lightweight_filter_ptg(outmap,efv["size"],efv["pixsize"],WIKID=efv["WIKID"]) + mnlvl
+        # Then just apply the transfer function (rather than reading in the file each iteration)
+        model   =  FI.apply_xfer(outmap,tab,efv["pixsize"]) + mnlvl
         loglike = 0.0
         data    = hdul[0].data
         weights = hdul[1].data       # Best to mask weights (not use the entire map!)
@@ -290,7 +301,9 @@ def run_emcee(hdul,cosmo_pars,efv,xymap,outfile,BSerr=False,nsteps=1000,plotPin=
         if fprior(pos):
             likel,outalphas,ycyl = lnlike(pos)
             plike                = lnprior(pos,outalphas,ycyl)
-            #print(len(ycyl))
+            if np.any(np.isnan(likel)):
+                print(pos)
+                likel = -np.inf
         else:
             likel = -np.inf
             plike = 0
@@ -367,7 +380,7 @@ def post_mcmc_products(hdul,sampler,cosmo_pars,efv,xymap,outfile,plotPin=True,ad
 
     pos     = mysolns[:,0]
     outmap,yint,outalpha,mnlvl = make_skymodel_map(hdul,pos,cosmo_pars,efv,xymap)
-    model   = WH.lightweight_filter_ptg(outmap,efv["size"],efv["pixsize"]) + mnlvl
+    model   = WH.lightweight_filter_ptg(outmap,efv["size"],efv["pixsize"],WIKID=efv["WIKID"]) + mnlvl
 
     OutHDU1 = fits.PrimaryHDU(outmap,header=hdul[0].header)
     OutHDU2 = fits.ImageHDU(model,header=hdul[1].header)
@@ -928,7 +941,7 @@ def improved_bin_spacing(radminmax,nbins,mway=False):
     m2fwhm    = 10.0 * u.arcsec.to('rad')
     bins      = np.logspace(np.log10(radminmax[0]),np.log10(radminmax[1]), nbins)
 
-    print(bins)
+    #print(bins)
     
     if mway:
         barr   = bins*1.0
@@ -1094,7 +1107,8 @@ def prntPeak(yProf,inHDU,isUK=True,Tag="SimObs-- "):
 
     print(Tag+"Peak in binned profile: ",ProfPeak," ; peak in map: ",MapPeak)
 
-def plot_SB_profiles(SimObs,SimSky,outdir,filename,prntPk=True,isUK=True,xmin=0,xmax=2.0):
+def plot_SB_profiles(SimObs,SimSky,outdir,filename,prntPk=True,isUK=True,xmin=0,xmax=2.0,
+                     addHDU=None,addLabel=None):
 
     """
     A routine to plot a simulated sky versus simulated observation, radial profiles.
@@ -1125,11 +1139,17 @@ def plot_SB_profiles(SimObs,SimSky,outdir,filename,prntPk=True,isUK=True,xmin=0,
     myax      = myfig.add_subplot(111)
     myax.plot(SOr,SOy,label="Mock Obs")
     myax.plot(SSr,SSy,label="Sky, bm conv.")
+    if not addHDU is None:
+        addr,addy,adde,addc = extract_radial_profile(addHDU)
+        myax.plot(addr,addy,label=addLabel)
+        if prntPk:
+            prntPeak(addy,addHDU,isUK=True,Tag="Smoothed Mock Obs-- ")
+
     #myax.plot(WMr,UncPerBin,label="Corresponding Unc.")
 
     if prntPk:
-        prntPeak(SOy,SimObs,isUK=True,Tag="SimObs-- ")
-        prntPeak(SOy,SimSky,isUK=True,Tag="SimSky-- ")
+        prntPeak(SOy,SimObs,isUK=True,Tag="Mock Obs-- ")
+        prntPeak(SOy,SimSky,isUK=True,Tag="Bm. Conv. Sky-- ")
     
     myax.set_xlabel("Radius (arcmin)")
     myax.set_ylabel(r"SB ($\mu$K)")

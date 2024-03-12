@@ -13,6 +13,8 @@ import M2_ProposalTools.MakeRMSmap as MRM
 from astropy.wcs import WCS
 from astropy.io import fits                # To read/write fits
 import sys,os
+from scipy.optimize import curve_fit
+import matplotlib.pyplot as plt
 
 
 from importlib import reload
@@ -735,7 +737,7 @@ def get_sz_values():
 
     return sz_cons_values, sz_cons_units
 
-def make_A10Map(M500,z,pixsize=2,h70=1,nb_theta_range=150,Dist=False):
+def make_A10Map(M500,z,pixsize=2,h70=1,nb_theta_range=150,Dist=False,nR500=3.0):
     """
     Makes an A10 map with automated mapsize.
 
@@ -766,7 +768,7 @@ def make_A10Map(M500,z,pixsize=2,h70=1,nb_theta_range=150,Dist=False):
     tnx        = [minpixrad.value,10.0*Theta500]  # In radians
     thetas     = np.logspace(np.log10(tnx[0]),np.log10(tnx[1]), nb_theta_range)
     map_vars   = {"thetas":thetas}
-    nx         = int( np.round( (Theta500*3600*180/np.pi)*3 / 2.0 ) )
+    nx         = int( np.round( (Theta500*3600*180/np.pi)*nR500*2/pixsize) )
     mapshape   = (nx,nx)
     zeromap    = np.zeros(mapshape)
     xymap      = get_xymap(zeromap,pixsize=pixsize*u.arcsec)
@@ -836,7 +838,69 @@ def get_xferfile(size):
 
     return xferfile
 
-def get_xfertab(size):
+def xfer_param_fxn(karr,lgkc,lgetac,lgx0):
+
+    #xv   = (pars[0]/karr)**pars[1]
+    #xfer = np.exp(-xv)*pars[2]
+    kc    = np.exp(lgkc)
+    eta_c = np.exp(lgetac)
+    x0    = np.exp(lgx0)
+    xv    = (kc/karr)**eta_c
+    xfer  = np.exp(-xv)*x0
+
+    return xfer
+
+def get_xfer_fit(tab,size,WIKID=True):
+
+    PNGsave = "WIKID" if WIKID else "MUSTANG-2"
+    sizestr = "{:.1f}".format(size).replace(".","s")
+    newfile = "TransferFunction_"+PNGsave+"_scansize_"+sizestr+".npy"
+
+    if os.path.exists(newfile):
+        with open(newfile,'rb') as nf:
+            newtab = np.load(nf)
+
+    else:
+        k = tab[0,:]
+        x = tab[1,:]
+    
+        gi    = (k > 0)*(k < 0.1)
+        xdata = k[gi]
+        ydata = x[gi]
+        
+        p0         = np.log(np.array([0.01,0.5,0.98]))
+        popt, pcov = curve_fit(xfer_param_fxn, xdata, ydata,p0=p0)
+        if WIKID:
+            popt[0] -= np.log(2.0)     # Cutoff is twice as small for WIKID, as its FOV is twice as big.
+        kout       = np.logspace(-3.5,1.0,200)
+        xfxn       = xfer_param_fxn(kout,*popt)
+        
+        myfig = plt.figure(10,figsize=(5,4),dpi=200)
+        myfig.clf()
+        myax  = myfig.add_subplot(111)
+        
+        kgtz  = (k > 0)
+        myax.plot(k[kgtz],x[kgtz],label="MUSTANG-2, measured")
+        mylabel = "WIKID" if WIKID else "MUSTANG-2, fit"
+        myax.plot(kout,xfxn,"--",label="WIKID")
+        myax.set_xscale("log")
+        myax.set_xlabel(r"$k = 1/\lambda$ (arcseconds$^{-1}$")
+        myax.set_ylabel("Transmission")
+        myax.legend()
+        myfig.tight_layout()
+        myfig.savefig(PNGsave+"_XferFunction.png")
+        
+        newtab = np.vstack([kout,xfxn])
+        with open(newfile,"wb") as nf:
+            np.save(nf,newtab)
+            
+    #print(newtab.shape)
+    #print(popt)
+    #import pdb;pdb.set_trace()
+    
+    return newtab
+
+def get_xfertab(size,WIKID=False):
     """
     Parameters
     ----------
@@ -859,9 +923,12 @@ def get_xfertab(size):
     fullpath = os.path.join(mypath,xferfile)
     tab      = FI.get_xfer(fullpath)
 
+    if WIKID:
+        tab = get_xfer_fit(tab,size)
+
     return tab
 
-def lightweight_filter_ptg(skymap,size,pixsize):
+def lightweight_filter_ptg(skymap,size,pixsize,WIKID=False):
     """   
     Parameters
     ----------
@@ -878,14 +945,14 @@ def lightweight_filter_ptg(skymap,size,pixsize):
        The filtered image
     """
 
-    tab   = get_xfertab(size)
+    tab   = get_xfertab(size,WIKID=WIKID)
     yxfer = FI.apply_xfer(skymap,tab,pixsize)
 
     return yxfer
 
 def lightweight_simobs_A10(z,M500,ptgs=[[180,45.0]],sizes=[3.5],times=[10.0],offsets=[1.5],
                            center=[180,45.0],xsize=12.0,ysize=12.0,pixsize=2.0,Dist=False,
-                           fwhm=9.0,conv2uK=False,verbose=False):
+                           fwhm=9.0,conv2uK=False,verbose=False,y2k=-3.4):
     """   
     A lightweight mock observation tool. To be lightweight, everything is approximate -- but it's fast!
 
@@ -973,7 +1040,7 @@ def lightweight_simobs_A10(z,M500,ptgs=[[180,45.0]],sizes=[3.5],times=[10.0],off
             SkyMaps.append(SkyMap)
             SkyCoadd     = MRM.coaddimg_noRP(SkyCoadd,SkyMap)
 
-    myFactor         =  -3.3*1e6 if conv2uK else 1.0
+    myFactor         =  y2k*1e6 if conv2uK else 1.0
     SkySmooth        =  filters.gaussian_filter(SkyCoadd[0].data,pix_sigma) * myFactor
     SkyObs           =  SkyCoadd[0].data*1.0
     SkyCoadd[0].data =  SkyObs*myFactor
@@ -982,6 +1049,140 @@ def lightweight_simobs_A10(z,M500,ptgs=[[180,45.0]],sizes=[3.5],times=[10.0],off
     SkySmHDU         =  fits.HDUList([SSP,SSS])
     
     return SkyCoadd, SkySmHDU,SkyHDU
+
+def make_A10_hdu(z,M500,pixsize,center=[180,45.0],nR500=3.0,Dist=False,beamConvolve=True,conv2uK=True,y2k=-3.4):
+    """   
+    Compute and grid an A10 Compton y profile and put it into an HDUList
+
+    Parameters
+    ----------
+    z : float
+       The redshift
+    M500 : quantity
+       :math:`M\_{500}` with units of mass
+    pixsize : float
+       The pixel size, in arcseconds
+    center : list
+       A two-element list corresponding to the RA and Dec of the center of the map
+    Dist : bool
+       Adopt a disturbed A10 model?
+    conv2uK : bool
+       Convert the resultant images from Compton y to microK_RJ (the standard units for MUSTANG-2 maps).
+    y2k : float
+       What is the conversion factor between Compton y and K_RJ (for MUSTANG-2)? The default is -3.4, which corresponds to the conversion with relativistic corrections for kT_e ~ 7 keV. This factor is -3.5 at kT_e = 2 keV and -3.3 at kT_e = 12 keV.
+    verbose : bool
+       Have the function print extraneous information?
+
+    """
+
+    ymap           = make_A10Map(M500,z,pixsize=pixsize,Dist=Dist,nR500=nR500)
+    if beamConvolve:
+        mymap          = smooth_by_M2_beam(ymap,pixsize=pixsize)
+    else:
+        mymap          = ymap.copy()
+    nx,ny          = mymap.shape
+    SkyHDU         = MRM.make_template_hdul(nx,ny,center,pixsize)
+    myFactor       =  y2k*1e6 if conv2uK else 1.0
+    SkyHDU[0].data = mymap*myFactor
+
+    return SkyHDU
+
+def lightweight_simobs_hdu(SkyHDU,ptgs=[[180,45.0]],sizes=[3.5],times=[10.0],offsets=[1.5],
+                           center=None,xsize=12.0,ysize=12.0,pixsize=2.0,fwhm=9.0,verbose=False,WIKID=False):
+    """   
+    A lightweight mock observation tool. To be lightweight, everything is approximate -- but it's fast!
+
+    Parameters
+    ----------
+    SkyHDU : HDUList
+       An HDUList, for which only the first extension (ext=0) is accessed. That extension should contain a beam-convolved image of the target.
+    ptgs : list(list)
+       A list of 2-element pairs (of RA and Dec, in degrees)
+    sizes : list(float)
+       A list of scan sizes, in arcminutes. Only 2.5, 3.0, 3.5, 4.0, 4.5, and 5.0 are valid.
+    times : list(float)
+       A list of integration times for corresponding pointings and scan sizes, in hours.
+    offsets : list(float)
+       A list of pointing offsets, in arcminutes.
+    fwhm : float
+       The smoothing kernal for a resultant MIDAS map, in arcseconds. 9" is the default.
+    verbose : bool
+       Have the function print extraneous information?
+    center : list or None-type
+       If supplied, a two-element list corresponding to the RA and Dec of the center of the weight map. Set this if wish to adopt a new astrometry for your weight map, relative to the astrometry of the input SkyHDU. The default is None and as such the weight map will adopt the astrometry of the SkyHDU.
+    xsize : float
+       The length of the map, in arcminutes, along the RA direction.
+    ysize : float
+       The length of the map, in arcminutes, along the Dec direction.
+    pixsize : float
+       The pixel size, in arcseconds
+
+    """
+    
+    sig2fwhm       = np.sqrt(8.0*np.log(2.0)) 
+    pix_sigma      = fwhm/(pixsize*sig2fwhm)
+    Skyhdr         = SkyHDU[0].header
+    if center is None:
+        nx,ny         = SkyHDU[0].data.shape
+        SkyC_HDU      = fits.PrimaryHDU(np.zeros((nx,ny)),header=Skyhdr)
+        SkyCoadd      = fits.HDUList([SkyC_HDU])
+        SkyW          = WCS(Skyhdr)
+        #print(SkyW.wcs.crval)
+        #import pdb;pdb.set_trace()
+        center        = SkyW.wcs.crval
+    else:
+        nx             = int(np.round(xsize*60/pixsize))
+        ny             = int(np.round(ysize*60/pixsize))
+        SkyCoadd       = MRM.make_template_hdul(nx,ny,center,pixsize)
+
+    SkyCoadd       = MRM.Make_ImgWtmap_HDU(SkyCoadd,np.zeros((nx,ny)),np.zeros((nx,ny)))
+
+    SkyMaps        = []
+    SkyWtmap       = MRM.make_template_hdul(nx,ny,center,pixsize)
+    
+    for si,(p,s,t,o) in enumerate(zip(ptgs,sizes,times,offsets)):
+
+        wtmap          = np.zeros((nx,ny))
+        if o > 0:
+            degoff       = o/60.0 # Offset in degrees
+            cosdec       = np.cos(p[1]*np.pi/180.0)
+            FOV          = 8.5 if WIKID else 4.2
+            npix         = int(np.round((s*60*1.5+FOV)/pixsize))
+            for i in range(4):
+                wtmap        = np.zeros((nx,ny))
+                newx         = p[0] + np.cos(np.pi*i/2)*degoff/cosdec
+                newy         = p[1] + np.sin(np.pi*i/2)*degoff
+                myptg        = [newx,newy]
+                if verbose:
+                    print(myptg)
+                TemplateHDU  = MRM.make_template_hdul(npix,npix,myptg,pixsize)
+                ptghdr       = TemplateHDU[0].header
+                ycutout,fp0  = MRM.reproject_fillzeros(SkyHDU,ptghdr)
+                wtmap        = MRM.add_to_wtmap(wtmap,Skyhdr,myptg,s,t/4.0,offset=0,WIKID=WIKID) # Need to fix
+                TemplateHDU[0].data = lightweight_filter_ptg(ycutout,s,pixsize,WIKID=WIKID)
+                Sky_yxfer,fp = MRM.reproject_fillzeros(TemplateHDU,Skyhdr)
+                SkyMap       = MRM.Make_ImgWtmap_HDU(SkyWtmap,Sky_yxfer,wtmap)
+                SkyMaps.append(SkyMap)
+                SkyCoadd     = MRM.coaddimg_noRP(SkyCoadd,SkyMap)
+        else:
+            TemplateHDU  = MRM.make_template_hdul(npix,npix,p,pixsize)
+            ptghdr       = TemplateHDU[0].header
+            ycutout,fp0  = MRM.reproject_fillzeros(SkyHDU,ptghdr)
+            wtmap        = MRM.add_to_wtmap(wtmap,Skyhdr,p,s,t,offset=o,WIKID=WIKID) # Need to fix
+            #maxwt        = np.max(wtmap)
+            #minrms       = 1.0/np.sqrt(maxwt)
+            TemplateHDU[0].data = lightweight_filter_ptg(ycutout,s,pixsize,WIKID=WIKID)
+            Sky_yxfer,fp = MRM.reproject_fillzeros(TemplateHDU,Skyhdr)
+            SkyMap       = MRM.Make_ImgWtmap_HDU(SkyWtmap,Sky_yxfer,wtmap)
+            SkyMaps.append(SkyMap)
+            SkyCoadd     = MRM.coaddimg_noRP(SkyCoadd,SkyMap)
+
+    SkySmooth        =  filters.gaussian_filter(SkyCoadd[0].data,pix_sigma)
+    SSP              =  fits.PrimaryHDU(SkySmooth,header=SkyCoadd[0].header)
+    SSS              =  fits.ImageHDU(SkyCoadd[1].data,header=SkyCoadd[0].header)
+    SkySmHDU         =  fits.HDUList([SSP,SSS])
+    
+    return SkyCoadd, SkySmHDU
 
 def get_SNR_map(hdul):
     """   
