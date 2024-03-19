@@ -497,9 +497,20 @@ def get_mapspd_pars(size,WIKID=False):
         p[1] = p[1]/2.0
         p[2] = p[2]*2.0
         p[3] = p[3]/2.0
+        if size == 2.5:
+            p = [2.9*3.3,0.26]
+        if size == 3.0:
+            p = [3.1*3.3,0.26]
         if size == 3.5:
             #print("Heya")
-            p = [11.2, 0.2]
+            p = [3.4*3.3, 0.18]
+        if size == 4.0:
+            p = [3.85*3.3,0.17]
+        if size == 4.5:
+            p - [4.2*3.3,0.128]
+        if size == 5.0:
+            p - [5.02*3.3,0.12]
+            
         #print(p)
         ### To be confirmed
 

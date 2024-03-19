@@ -427,7 +427,7 @@ def make_rmap(xymap):
 
     return rmap
 
-def make_a10_map(M500,z,xymap,Theta500,nx,ny,nb_theta_range=150,Dist=False):
+def make_a10_map(M500,z,xymap,Theta500,nx,ny,nb_theta_range=150,Dist=False,c500=None,p=None,a=None,b=None,c=None):
     """
     Return a tuple of x- and y-coordinates.
 
@@ -449,6 +449,16 @@ def make_a10_map(M500,z,xymap,Theta500,nx,ny,nb_theta_range=150,Dist=False):
        Number of elements in an array of radii.
     Dist : bool
        Assume a disturbed A10 profile? Default is False
+    c500 : float, none-type
+      If None, adopts the radius scaling value for A10 (full or disturbed) sample
+    p : float, none-type
+      If None, adopts the normalization value for A10 (full or disturbed) sample
+    a : float, none-type
+      If None, adopts the alpha value for A10 (full or disturbed) sample
+    b : float, none-type
+      If None, adopts the beta value for A10 (full or disturbed) sample
+    c : float, none-type
+      If None, adopts the gamma value for A10 (full or disturbed) sample
 
     Returns
     -------
@@ -462,7 +472,7 @@ def make_a10_map(M500,z,xymap,Theta500,nx,ny,nb_theta_range=150,Dist=False):
     thetas    = np.logspace(np.log10(tnx[0]),np.log10(tnx[1]), nb_theta_range)
     d_ang     = get_d_ang(z)
     radkpc    = thetas*d_ang.to("kpc")
-    PresProf  = a10_from_m500_z(M500, z,radkpc,Dist=Dist)
+    PresProf  = a10_from_m500_z(M500, z,radkpc,Dist=Dist,c500=c500,p=p,a=a,b=b,c=c)
     to,yProf  = get_yProf(radkpc,PresProf,z)
     #x2p,y2p   = xymap
     #origshape = x2p.shape
@@ -569,7 +579,7 @@ def get_ell_rads(x,y,ella,ellb):
 
     return xnew, ynew
 
-def a10_from_m500_z(m500, z,rads,Dist=False):
+def a10_from_m500_z(m500, z,rads,Dist=False,c500=None,p=None,a=None,b=None,c=None):
     """
     Parameters
     ----------
@@ -583,6 +593,16 @@ def a10_from_m500_z(m500, z,rads,Dist=False):
        Array of radii (with units of length)
     Dist : bool
        Assume a disturbed A10 profile? Default is False
+    c500 : float, none-type
+      If None, adopts the radius scaling value for A10 (full or disturbed) sample
+    p : float, none-type
+      If None, adopts the normalization value for A10 (full or disturbed) sample
+    a : float, none-type
+      If None, adopts the alpha value for A10 (full or disturbed) sample
+    b : float, none-type
+      If None, adopts the beta value for A10 (full or disturbed) sample
+    c : float, none-type
+      If None, adopts the gamma value for A10 (full or disturbed) sample
 
     Returns
     -------
@@ -592,18 +612,17 @@ def a10_from_m500_z(m500, z,rads,Dist=False):
     """
     
     r500, p500 = R500_P500_from_M500_z(m500,z)
-    if Dist:
-        c500= 1.083
-        p=3.202
-        a=1.4063
-        b=5.4905
-        c=0.3798
-    else:
-        c500= 1.177
-        p=8.403
-        a=1.0510
-        b=5.4905
-        c=0.3081
+    if c500 is None:
+        c500 = 1.083 if Dist else 1.177
+    if p is None:
+        p = 3.202 if Dist else 8.403
+    if a is None:
+        a = 1.4063 if Dist else 1.0510
+    if b is None:
+        b = 5.4905     # Fixed to simulations for all subsets.
+    if c is None:
+        c = 0.3798 if Dist else 0.3081 # Steeper for the disturbed sample! Oh Degeneracies.
+    
     gnfw_prof  = gnfw(r500,p500,rads,c500=c500,p=p,a=a,b=b,c=c)
     
     return gnfw_prof
@@ -737,7 +756,7 @@ def get_sz_values():
 
     return sz_cons_values, sz_cons_units
 
-def make_A10Map(M500,z,pixsize=2,h70=1,nb_theta_range=150,Dist=False,nR500=3.0):
+def make_A10Map(M500,z,pixsize=2,h70=1,nb_theta_range=150,Dist=False,nR500=3.0,c500=None,p=None,a=None,b=None,c=None):
     """
     Makes an A10 map with automated mapsize.
 
@@ -755,6 +774,16 @@ def make_A10Map(M500,z,pixsize=2,h70=1,nb_theta_range=150,Dist=False,nR500=3.0):
        Number of elements in an array of radii.
     Dist : bool
        Assume a disturbed A10 profile? Default is False
+    c500 : float, none-type
+      If None, adopts the radius scaling value for A10 (full or disturbed) sample
+    p : float, none-type
+      If None, adopts the normalization value for A10 (full or disturbed) sample
+    a : float, none-type
+      If None, adopts the alpha value for A10 (full or disturbed) sample
+    b : float, none-type
+      If None, adopts the beta value for A10 (full or disturbed) sample
+    c : float, none-type
+      If None, adopts the gamma value for A10 (full or disturbed) sample
 
     Returns
     -------
@@ -772,7 +801,7 @@ def make_A10Map(M500,z,pixsize=2,h70=1,nb_theta_range=150,Dist=False,nR500=3.0):
     mapshape   = (nx,nx)
     zeromap    = np.zeros(mapshape)
     xymap      = get_xymap(zeromap,pixsize=pixsize*u.arcsec)
-    ymap       = make_a10_map(M500,z,xymap,Theta500,nx,nx,Dist=Dist)
+    ymap       = make_a10_map(M500,z,xymap,Theta500,nx,nx,Dist=Dist,c500=c500,p=p,a=a,b=b,c=c)
 
     return ymap
 
@@ -952,7 +981,7 @@ def lightweight_filter_ptg(skymap,size,pixsize,WIKID=False):
 
 def lightweight_simobs_A10(z,M500,ptgs=[[180,45.0]],sizes=[3.5],times=[10.0],offsets=[1.5],
                            center=[180,45.0],xsize=12.0,ysize=12.0,pixsize=2.0,Dist=False,
-                           fwhm=9.0,conv2uK=False,verbose=False,y2k=-3.4):
+                           fwhm=9.0,conv2uK=False,verbose=False,y2k=-3.4,c500=None,p=None,a=None,b=None,c=None):
     """   
     A lightweight mock observation tool. To be lightweight, everything is approximate -- but it's fast!
 
@@ -986,12 +1015,22 @@ def lightweight_simobs_A10(z,M500,ptgs=[[180,45.0]],sizes=[3.5],times=[10.0],off
        Convert the resultant images from Compton y to microK_RJ (the standard units for MUSTANG-2 maps).
     verbose : bool
        Have the function print extraneous information?
+    c500 : float, none-type
+      If None, adopts the radius scaling value for A10 (full or disturbed) sample
+    p : float, none-type
+      If None, adopts the normalization value for A10 (full or disturbed) sample
+    a : float, none-type
+      If None, adopts the alpha value for A10 (full or disturbed) sample
+    b : float, none-type
+      If None, adopts the beta value for A10 (full or disturbed) sample
+    c : float, none-type
+      If None, adopts the gamma value for A10 (full or disturbed) sample
 
     """
     
     sig2fwhm       = np.sqrt(8.0*np.log(2.0)) 
     pix_sigma      = fwhm/(pixsize*sig2fwhm)
-    ymap           = make_A10Map(M500,z,pixsize=pixsize,Dist=Dist)
+    ymap           = make_A10Map(M500,z,pixsize=pixsize,Dist=Dist,c500=c500,p=p,a=a,b=b,c=c)
     mymap          = smooth_by_M2_beam(ymap,pixsize=pixsize)
     nx,ny          = mymap.shape
     SkyHDU         = MRM.make_template_hdul(nx,ny,center,pixsize)
@@ -1050,7 +1089,8 @@ def lightweight_simobs_A10(z,M500,ptgs=[[180,45.0]],sizes=[3.5],times=[10.0],off
     
     return SkyCoadd, SkySmHDU,SkyHDU
 
-def make_A10_hdu(z,M500,pixsize,center=[180,45.0],nR500=3.0,Dist=False,beamConvolve=True,conv2uK=True,y2k=-3.4):
+def make_A10_hdu(z,M500,pixsize,center=[180,45.0],nR500=3.0,Dist=False,beamConvolve=True,conv2uK=True,y2k=-3.4,
+                 c500=None,p=None,a=None,b=None,c=None):
     """   
     Compute and grid an A10 Compton y profile and put it into an HDUList
 
@@ -1072,10 +1112,20 @@ def make_A10_hdu(z,M500,pixsize,center=[180,45.0],nR500=3.0,Dist=False,beamConvo
        What is the conversion factor between Compton y and K_RJ (for MUSTANG-2)? The default is -3.4, which corresponds to the conversion with relativistic corrections for kT_e ~ 7 keV. This factor is -3.5 at kT_e = 2 keV and -3.3 at kT_e = 12 keV.
     verbose : bool
        Have the function print extraneous information?
+    c500 : float, none-type
+      If None, adopts the radius scaling value for A10 (full or disturbed) sample
+    p : float, none-type
+      If None, adopts the normalization value for A10 (full or disturbed) sample
+    a : float, none-type
+      If None, adopts the alpha value for A10 (full or disturbed) sample
+    b : float, none-type
+      If None, adopts the beta value for A10 (full or disturbed) sample
+    c : float, none-type
+      If None, adopts the gamma value for A10 (full or disturbed) sample
 
     """
 
-    ymap           = make_A10Map(M500,z,pixsize=pixsize,Dist=Dist,nR500=nR500)
+    ymap           = make_A10Map(M500,z,pixsize=pixsize,Dist=Dist,nR500=nR500,c500=c500,p=p,a=a,b=b,c=c)
     if beamConvolve:
         mymap          = smooth_by_M2_beam(ymap,pixsize=pixsize)
     else:

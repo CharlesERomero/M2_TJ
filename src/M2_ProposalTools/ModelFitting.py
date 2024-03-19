@@ -347,6 +347,7 @@ def post_mcmc_products(hdul,sampler,cosmo_pars,efv,xymap,outfile,plotPin=True,ad
                              zip(*np.percentile(flat_samples, [16, 50, 84],
                                                 axis=0)))))
     blobarr     = sampler.get_blobs(flat=True,discard=efv["nburn"], thin=efv["nwalkers"])
+    blobarr     = blobarr[np.isfinite(blobarr)]        # No need for NANs or infs.
     Yints       = np.percentile(blobarr, [16, 50, 84],axis=0)
     yinteg      = Yints[1]       # This is the median...i.e. the best-fit value
     #print(yinteg)
