@@ -1,0 +1,43 @@
+authors:
+  - name: Charles Romero
+    affiliation:: '1'
+
+# Abstract
+
+    MUSTANG-2 is a 215-detector array that was installed on the 100-m Robert C. Byrd Green Bank Telescope (GBT) in 2016. Observing at 90 GHz, with a continuum bandpass between 75 and 105 GHz, it achieves $10^{\prime\prime}$ resolution (FWHM) and has an instantaneous field of view (FOV) of $4^{\prime}.2$. The primary observing strategy employed for MUSTANG-2 observations is on-the-fly mapping with a Lissajous daisy pattern sufficiently large to go off-source. A fundamental reasons for this strategy is due to the data processing, which is itself a differencing measurement. In this research note, we provide some light-weight tools that may be useful for proposers of MUSTANG-2.
+    
+# Introduction
+
+    In a simplified view, technical justifications for observing proposals require a calculation of the expected observed signal and expected noise. With respect to the latter, the MUSTANG-2 team had provided mapping speeds for Lissajous daisy scans of select sizes (2.5, 3.0, 3.5, 4.0, 4.5, and 5.0 arcminutes, which refers to the radius of the scan trajectory.) This was provided both as a profile plot (see Figure~\autoref{fig:M2mappingSpeeds}) and as an average mapping speed within the central 2 arcminutes (a circle with radius of 2 arcminutes). 
+
+    Presenting mapping speeds in this manner is intended to simplify the task for a MUSTANG-2 proposer. In particular, these mapping speeds have been robustly confirmed over the years since MUSTANG-2 deployment. This is, in large part, thanks to the dynamical scheduling of the GBT which allows high frequency instruments to observe in similar (generally good) conditions, and so for most observing projects, these mapping speeds reflect what is achieved. The stability of observing conditions allows us to focus on the simulations of observations under the average conditions in this research note. 
+
+[//]: # ( There are a miriad of atmospheric models We note recent development of \texttt{maria} \citep{vanMarrewijk2024} which is able to simulate different atmospheric conditions. If referencing atmospheric modelling, there are quite a few papers to cite. I think picking out Joshiwa's (solely) is...a choice. But I guess it's not peer-reviewed. )
+
+    Another aspect of MUSTANG-2 data processing (common among single-dish continuum cameras which observe via on-the-fly scans) is a filtering of the desired sky signal. This aspect has not been as publicly disseminated, but is now available, in an approximate form, through the Python package, ``M2_TJ``. We stress that this tool is intended solely for use with MUSTANG-2 proposals and not the analysis of actual MUSTANG-2 data products. The MUSTANG-2 team will provide the appropriate data products upon a project's completion.
+
+# A Python package for M2 proposers
+
+[//]: # ( The Python package ``M2_TJ`` is available at \url{https://pypi.org/project/M2-TJ/} and technical documentation is available at \url{https://m2-tj.readthedocs.io/en/latest/}. To reiterate, )
+
+    The motivation for this tool is to provide MUSTANG-2 proposers with the means of estimating the noise and signal achieved when observing a given target with the user-defined scanning strategy (within the options of Lissajous daisy scans available)[^1]. Given the prevalence of projects which wish to observe galaxy clusters via the Sunyaev-Zel'dovich [SZ; @sunyaev:1972] effect, we have included the ability to estimate the SZ effect from a spherical cluster which uses an universal pressure profile (UPP) as parameterized in [A10; @arnaud:2010]. However, users may also supply their own (unfiltered) sky images. 
+
+[^1]: NB Scan patterns beyond Lissajous daisies are possible, but performance is not as well vetted. Questions concerning projects which require alternative scan strategies should be directed to the MUSTANG-2 team.
+
+![Mapping speeds profiles by scan radius (in arcminutes) for a single pointing.\label{fig:M2mappingSpeeds}](AverageMappingSpeedsTogether_M2homepage.png){width=3.5}
+
+
+![Sensitivity map (map of RMS), in this case assuming a single scan size with an offset pointing strategy.\label{fig:M2simObs}](SimulatedObservations_0z5_6m0_3s5_3s5_10h0_0h0_4p0_RMSimage.png){ width=80% }
+
+    To provide MUSTANG-2 proposers with concrete examples, ``Jupyter`` notebooks are provided in the package distribution. In the case of projects interested in detecting the SZ signal, a quick estimation of the required time can be inferred from the peak of the SZ signal relative to the noise (from scans centered on the cluster center) and some desired detection significance. In particular, an objective of $10\sigma$ peak detection significance is often sufficient to obtain a mass estimate at $M_{500}$ [@dicker:2020]. 
+
+    Other notebooks allow the user to create sensitivity maps, either provided as RMS maps in $\mu$K$_{\rm RJ}$ or weight maps, usually provided in $\mu$K$_{\rm RJ}^{-2}$. Additionally, one can obtain maps of filtered signal (arbitrary units). Instructions for users to convert images from units of Compton $y$, $Jy/pixel$, or $Jy/beam$ (per MUSTANG-2 beam) are provided in the documentation. While there is some built-in functionality for making figures, users may prefer to access the generated fits files independently. In this manner, users can identify regions or features of interest and determine the required sensitivity to detect those regions. 
+    
+    Due to the filtering of extended signal, MUSTANG-2 observers may want to forward model objects which have extended signal. Another example notebook shows how this may be done for the case of a spherical cluster. So long as a user can supply a parametric model, the same methodology can be applied to any target. Here, we wish to stress once again that the tools provided in this package are approximate and should only serve to guide in crafting the technical justification in MUSTANG-2 proposals. For actual MUSTANG-2 data, transfer functions and other project-specific MUSTANG-2 data products will be provided to observers.
+
+    Finally, we note that this package is based on MUSTANG-2 data products from the MIDAS pipeline \citep{romero2020}. There is an alternative data processing suite, Minkasi [Seivers et al., in prep.; @romero:2020; @dicker:2020,@orlowski:2022] which allows one to fit models to data in the time domain, which is how raw MUSTANG-2 data is recorded. This data processing suite has the advantage to better recover large-scale signal, but comes with added complexity. It is thus currently not ready for public distribution.
+
+## WIKID
+
+    We include options to simulate observations with a potential successor to MUSTANG-2, WIKID [@dicker:2023]. WIKID is proposed to be a single band continuum camera with polarization capabilities and a field of view just over $8^{\prime}$. Mapping speed profiles and approximate transfer functions are derived using real MUSTANG-2 data and simulating observations, within MIDAS, for a WIKID array of detectors with improved detector sensitivity and reduced readout noise. For an example cluster at $z=0.5$ with $M_{500} = 6 \times 10^{14}$ M$_{\odot}$ ($R_{500} = 3^{\prime}$), we find that with WIKID we can obtain uncertainties which are less than half those obtained from analogous MUSTANG-2 observations with twice the exposure of the WIKID observations. 
+
