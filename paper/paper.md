@@ -1,5 +1,5 @@
 ---
-title: MUSTANG-2 proposal tools
+title: 'MUSTANG-2 proposal tools'
 tags:
   - Python
   - MUSTANG-2
@@ -14,9 +14,8 @@ affiliations:
       index: 1
 date: 05 May 2024
 bilbiography: paper.bib
-      
 ---
-      
+
 # Summary
 
 MUSTANG-2 is a 215-detector array that was installed on the 100-m Robert C. Byrd Green Bank Telescope (GBT) in 2016. Observing at 90 GHz, with a continuum bandpass between 75 and 105 GHz, it achieves $10^{\prime\prime}$ resolution (FWHM) and has an instantaneous field of view (FOV) of $4^{\prime}.2$. The primary observing strategy employed for MUSTANG-2 observations is on-the-fly mapping with a Lissajous daisy pattern sufficiently large to go off-source. A fundamental reasons for this strategy is due to the data processing, which is itself a differencing measurement. In this research note, we provide some light-weight tools that may be useful for proposers of MUSTANG-2.
@@ -49,10 +48,10 @@ Finally, we note that this package is based on MUSTANG-2 data products from the 
 
 # Extension: WIKID
 
-We include options to simulate observations with a potential successor to MUSTANG-2, WIKID [@dicker:2023]. WIKID is proposed to be a single band continuum camera with polarization capabilities and a field of view just over $8^{\prime}$. Mapping speed profiles and approximate transfer functions are derived using real MUSTANG-2 data and simulating observations, within MIDAS, for a WIKID array of detectors with improved detector sensitivity and reduced readout noise. For an example cluster at $z=0.5$ with $M_{500} = 6 \times 10^{14}$ M$_{\odot}$ ($R_{500} = 3^{\prime}$), we find that with WIKID we can obtain uncertainties which are less than half those obtained from analogous MUSTANG-2 observations with twice the exposure of the WIKID observations. 
+We include options to simulate observations with a potential successor to MUSTANG-2, WIKID [@dicker:2023]. WIKID is proposed to be a single band continuum camera with polarization capabilities and a field of view just over $8^{\prime}$. Mapping speed profiles and approximate transfer functions are derived using real MUSTANG-2 data and simulating observations, within MIDAS, for a WIKID array of detectors with improved detector sensitivity and reduced readout noise. 
 
 # Acknowledgements
 
-This project uses the following Python packages: Astropy [@astropy], NumPy [@numpy2011; @numpy2020]
+This project uses the following Python packages: Astropy [@astropy:2022], NumPy [@numpy:2020]
 
 # References
