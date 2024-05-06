@@ -7,10 +7,9 @@ tags:
 authors:
   - name: Charles Romero
     orcid: 0000-0001-5725-0359
-    affiliation:: '1'
-    corresponding: true
+    affiliation: '1'
 affiliations:
-    - name: Center for Astrophysics | Harvard & Smithsonian, 60 Garden St. Cambridge, MA 02134
+    - name: Harvard-Smithsonian Center for Astrophysics, 60 Garden St. Cambridge, MA 02134
       index: 1
 date: 05 May 2024
 bilbiography: paper.bib
