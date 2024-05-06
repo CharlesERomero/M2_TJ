@@ -43,7 +43,7 @@ Additionally, one can obtain maps of filtered signal (arbitrary units). Instruct
     
 Due to the filtering of extended signal, MUSTANG-2 observers may want to forward model objects which have extended signal. Another example notebook shows how this may be done for the case of a spherical cluster. So long as a user can supply a parametric model, the same methodology can be applied to any target. Here, we wish to stress once again that the tools provided in this package are approximate and should only serve to guide in crafting the technical justification in MUSTANG-2 proposals. For actual MUSTANG-2 data, transfer functions and other project-specific MUSTANG-2 data products will be provided to observers.
 
-Finally, we note that this package is based on MUSTANG-2 data products from the MIDAS pipeline \citep{romero2020}. There is an alternative data processing suite, Minkasi [@romero:2020; @dicker:2020,@orlowski:2022] which allows one to fit models to data in the time domain, which is how raw MUSTANG-2 data is recorded. This data processing suite has the advantage to better recover large-scale signal, but comes with added complexity. It is thus currently not ready for public distribution.
+Finally, we note that this package is based on MUSTANG-2 data products from the MIDAS pipeline [@romero:2020]. There is an alternative data processing suite, Minkasi [@romero:2020; @dicker:2020,@orlowski:2022] which allows one to fit models to data in the time domain, which is how raw MUSTANG-2 data is recorded. This data processing suite has the advantage to better recover large-scale signal, but comes with added complexity. It is thus currently not ready for public distribution.
 
 # Extension: WIKID
 
