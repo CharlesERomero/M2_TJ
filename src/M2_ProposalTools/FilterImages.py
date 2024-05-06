@@ -28,7 +28,7 @@ def get_freqarr_2d(nx,ny,psx, psy):
     k = np.sqrt(kx*kx + ky*ky)
     return k
 
-def power_spectrum_2d(arr,nbins=10,psx=1,psy=1,logbins=0):
+def power_spectrum_2d(arr,nbins=10,psx=1,psy=1,logbins=False):
     """
     Compute 2D power spectrum of arr
     
@@ -60,10 +60,10 @@ def power_spectrum_2d(arr,nbins=10,psx=1,psy=1,logbins=0):
     pkbins = np.zeros(nbins+1)
 
     for idx in range(0,nbins):
-        list = np.nonzero((k > kbinarr[idx]) * (k<= kbinarr[idx+1]))
-        kbin[idx+1] = np.median(k[list])
-        pkbin[idx+1] = np.mean(pk[list])
-        pkbins[idx+1] = np.std(pk[list])/np.sqrt(len(list[0]))
+        mylist        = np.nonzero((k > kbinarr[idx]) * (k<= kbinarr[idx+1]))
+        kbin[idx+1]   = np.median(k[mylist])
+        pkbin[idx+1]  = np.mean(pk[mylist])
+        pkbins[idx+1] = np.std(pk[mylist])/np.sqrt(len(mylist[0]))
     return kbin,pkbin,pkbins
 
 def cross_power_spectrum_2d(arr,arr1,nbins=10,psx=1.0,psy=1.0,logbins=False):
@@ -106,10 +106,10 @@ def cross_power_spectrum_2d(arr,arr1,nbins=10,psx=1.0,psy=1.0,logbins=False):
             pkbin = np.zeros(nbins+1)
             pkbins = np.zeros(nbins+1)
             for idx in range(0,nbins):
-                list = np.nonzero((k > kbinarr[idx]) * (k<= kbinarr[idx+1]))
-                kbin[idx+1] = np.median(k[list])
-                pkbin[idx+1] = np.mean(pk[list])
-                pkbins[idx+1] = np.std(pk[list])/np.sqrt(len(list[0]))
+                mylist = np.nonzero((k > kbinarr[idx]) * (k<= kbinarr[idx+1]))
+                kbin[idx+1] = np.median(k[mylist])
+                pkbin[idx+1] = np.mean(pk[mylist])
+                pkbins[idx+1] = np.std(pk[mylist])/np.sqrt(len(mylist[0]))
     return kbin,pkbin,pkbins
 
 def fourier_conv_2d(arr,kernel):
