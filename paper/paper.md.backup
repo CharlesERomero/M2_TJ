@@ -27,10 +27,7 @@ mapping speeds have disseminated primarily as a single number calculated as the 
 
 ![Mapping speeds profiles by scan radius (in arcminutes) for a single pointing.\label{fig:M2mappingSpeeds}](AverageMappingSpeedsTogether_M2homepage.png){ width=80% }
 
-
-
-
-
+This package is based on MUSTANG-2 data products from the MIDAS pipeline [@romero:2020]. There is an alternative data processing suite, Minkasi [@romero:2020; @dicker:2020,@orlowski:2022] which allows one to fit models to data in the time domain, which is how raw MUSTANG-2 data is recorded. This data processing suite has the advantage to better recover large-scale signal, but comes with added complexity. It is thus currently not ready for public distribution.
 
 ![Sensitivity map (map of RMS), in this case assuming a single scan size with an offset pointing strategy.\label{fig:M2simObs}](SimulatedObservations_0z5_6m0_3s5_3s5_10h0_0h0_4p0_RMSimage.png){ width=80% }
 
@@ -40,10 +37,7 @@ Given the prevalence of projects which wish to observe galaxy clusters via the S
 
 
 Additionally, one can obtain maps of filtered signal (arbitrary units). Instructions for users to convert images from units of Compton $y$, Jy/pixel, or Jy/beam (per MUSTANG-2 beam) are provided in the documentation. While there is some built-in functionality for making figures, users may prefer to access the generated fits files independently. In this manner, users can identify regions or features of interest and determine the required sensitivity to detect those regions. 
-    
-Due to the filtering of extended signal, MUSTANG-2 observers may want to forward model objects which have extended signal. Another example notebook shows how this may be done for the case of a spherical cluster. So long as a user can supply a parametric model, the same methodology can be applied to any target. Here, we wish to stress once again that the tools provided in this package are approximate and should only serve to guide in crafting the technical justification in MUSTANG-2 proposals. For actual MUSTANG-2 data, transfer functions and other project-specific MUSTANG-2 data products will be provided to observers.
 
-Finally, we note that this package is based on MUSTANG-2 data products from the MIDAS pipeline [@romero:2020]. There is an alternative data processing suite, Minkasi [@romero:2020; @dicker:2020,@orlowski:2022] which allows one to fit models to data in the time domain, which is how raw MUSTANG-2 data is recorded. This data processing suite has the advantage to better recover large-scale signal, but comes with added complexity. It is thus currently not ready for public distribution.
 
 # Extension: WIKID
 
