@@ -22,26 +22,25 @@ MUSTANG-2 is a 215-detector array that was installed on the 100-m Robert C. Byrd
 # Statement of need
 
 MUSTANG-2 is a continuum camera operating on the GBT for which
-mapping speeds have disseminated primarily as a single number calculated as the RMS within the central 2 arcminutes of a Lissajous daisy scan. However, MUSTANG-2 proposers may wish to obtain results outside of this range and potentially combine multiple scan pointings. Additionally, MUSTANG-2 has a published transfer function [@romero:2020], but this has largely not be incorporated into the technical justification of MUSTANG-2 proposals. This package provides a lightweight set of tools that allow MUSTANG-2 proposers to incorporate more advanced sensitivity maps and signal transmittance into their technical justifications.
-
+mapping speeds have disseminated primarily as a single number calculated as the RMS within the central two arcminutes of a Lissajous daisy scan. However, the noise profile of MUSTANG-2 observations (for such scans) has a radial dependence (\autoref{fig:M2mappingSpeeds}). As such, proposers may wish to obtain results outside of the inner two arcminutes and potentially combine multiple scan pointings. Additionally, MUSTANG-2 has a published transfer function [@romero:2020], but this has largely not be incorporated into the technical justification of MUSTANG-2 proposals. This package provides a lightweight set of tools that allow MUSTANG-2 proposers to incorporate more advanced sensitivity maps and signal transmittance into their technical justifications.
 
 ![Mapping speeds profiles by scan radius (in arcminutes) for a single pointing.\label{fig:M2mappingSpeeds}](AverageMappingSpeedsTogether_M2homepage.png){ width=80% }
 
-This package is describes MUSTANG-2 maps produced with the MIDAS pipeline [@romero:2020]. 
+## Sensitivity Maps
 
-![Sensitivity map (map of RMS), in this case assuming a single scan size with an offset pointing strategy.\label{fig:M2simObs}](SimulatedObservations_0z5_6m0_3s5_3s5_10h0_0h0_4p0_RMSimage.png){ width=80% }
+While a single pointing on a target center can be sufficient, the MUSTANG-2 team has favored an offset scan strategy. This scan strategy employs four pointings which are offset (to the north, south, east, and west) of the target center. The offset can be specified; an offset of 1.5 arcminutes in each direction is typical. This provides a roughly uniform sensitivity in a larger central area (see \autoref{fig:SimObs}) and reduces residual atmospheric noise.
 
+This package simulates maps produced with the MIDAS pipeline [@romero:2020], which is the canonical pipeline for MUSTANG-2 data products. The default units for generated ``FITS`` files are Kelvin in the Rayleigh-Jeans approximation. Plotting routines in this package default to $\mu$K (Rayleigh-Jeans). Notes on converting from Compton $y$ or Jy/beam are provided in the documentation.
 
+![**Left:** MUSTANG-2 sensitivity map (map of RMS), 20 hours on-source using both a single scan size and an offset pointing strategy.**Right:** WIKID sensitivity map for similar pointing strategy, but only 10 hours on source. \label{fig:SimObs}](M2_vs_WIKID_c.pdf){ width=100% }
 
-Given the prevalence of projects which wish to observe galaxy clusters via the Sunyaev-Zel'dovich [SZ; @sunyaev:1972] effect, we have included the ability to estimate the SZ effect from a spherical cluster which uses an universal pressure profile (UPP) as parameterized in [A10; @arnaud:2010]. However, users may also supply their own (unfiltered) sky images. 
+## Filtering signal
 
-
-Additionally, one can obtain maps of filtered signal (arbitrary units). Instructions for users to convert images from units of Compton $y$, Jy/pixel, or Jy/beam (per MUSTANG-2 beam) are provided in the documentation. While there is some built-in functionality for making figures, users may prefer to access the generated fits files independently. In this manner, users can identify regions or features of interest and determine the required sensitivity to detect those regions. 
-
+Given the prevalence of projects targeting galaxy clusters via the Sunyaev-Zel'dovich [SZ; @sunyaev:1972] effect, we have included the ability to estimate the SZ effect from a spherical cluster which uses an universal pressure profile (UPP) as parameterized in [A10; @arnaud:2010]. Users may also supply their own (unfiltered) sky images. The package saves the filtered signal as a ``FITS`` file.
 
 # Extension: WIKID
 
-We include options to simulate observations with a potential successor to MUSTANG-2, WIKID [@dicker:2023]. WIKID is proposed to be a single band continuum camera with polarization capabilities and a field of view just over $8^{\prime}$. Mapping speed profiles and approximate transfer functions are derived using real MUSTANG-2 data and simulating observations, within MIDAS, for a WIKID array of detectors with improved detector sensitivity and reduced readout noise. 
+We include options to simulate observations with a potential successor to MUSTANG-2, WIKID [@dicker:2023]. WIKID is proposed to be a single band continuum camera with polarization capabilities and a field of view just over $8^{\prime}$. Mapping speed profiles and approximate transfer functions are derived using real MUSTANG-2 data and simulating observations, within MIDAS, for a WIKID array of detectors with improved detector sensitivity and reduced readout noise. \autoref{fig:SimObs} compares expected sensitivity maps for MUSTANG-2 and WIKID for the same pointing with only half the on-source times as with MUSTANG-2.
 
 # Acknowledgements
 
