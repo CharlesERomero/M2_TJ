@@ -44,6 +44,6 @@ We include options to simulate observations with a potential successor to MUSTAN
 
 # Acknowledgements
 
-This project uses the following Python packages: Astropy [@astropy:2022], NumPy [@numpy:2020]
+This project uses the following Python packages: Astropy [@astropy:2022], NumPy [@numpy:2020]. The Green Bank Observatory is a facility of the National Science Foundation operated under cooperative agreement by Associated Universities, Inc.
 
 # References

@@ -28,7 +28,7 @@ mapping speeds have disseminated primarily as a single number calculated as the 
 
 ## Sensitivity Maps
 
-While a single pointing on a target center can be sufficient, the MUSTANG-2 team has favored an offset scan strategy. This scan strategy employs four pointings which are offset (to the north, south, east, and west) of the target center. The offset can be specified; an offset of 1.5 arcminutes in each direction is typical. This provides a roughly uniform sensitivity in a larger central area (see \autoref{fig:SimObs}) and reduces residual atmospheric noise.
+While a single pointing on a target center can be sufficient, the MUSTANG-2 team has favored an offset scan strategy. This scan strategy employs four pointings which are offset (to the north, south, east, and west) of the target center. The offset can be specified; an offset of 1.5 arcminutes in each direction is typical. This provides a roughly uniform sensitivity in a central area larger than two arcminutes (see \autoref{fig:SimObs}) and reduces residual atmospheric noise.
 
 This package simulates maps produced with the MIDAS pipeline [@romero:2020], which is the canonical pipeline for MUSTANG-2 data products. The default units for generated ``FITS`` files are Kelvin in the Rayleigh-Jeans approximation. Plotting routines in this package default to $\mu$K (Rayleigh-Jeans). Notes on converting from Compton $y$ or Jy/beam are provided in the documentation.
 
@@ -44,6 +44,6 @@ We include options to simulate observations with a potential successor to MUSTAN
 
 # Acknowledgements
 
-This project uses the following Python packages: Astropy [@astropy:2022], NumPy [@numpy:2020]
+This project uses the following Python packages: Astropy [@astropy:2022], NumPy [@numpy:2020]. The Green Bank Observatory is a facility of the National Science Foundation operated under cooperative agreement by Associated Universities, Inc.
 
 # References

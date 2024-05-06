@@ -390,6 +390,8 @@ def post_mcmc_products(hdul,sampler,cosmo_pars,efv,xymap,outfile,plotPin=True,ad
     OutHDU.writeto(efv["outdir"]+OutName,overwrite=True)
 
     m500_res = np.abs(np.array([m500v,m_unc_values[0],m_unc_values[1]])) * 1e14
+    if np.any(np.isnan(m500_res)) or np.any(np.isinf(m500_res)):
+         m500_res = np.ones(3)*1e10
     plot_pressure_profiles(mysolns,efv,cosmo_pars,m500_res,plotPin=plotPin,adPhys=adPhys)
 
 def plot_pressure_profiles(solns,efv,cosmo_pars,m500,myfs=10,plotPin=True,adPhys=True):
