@@ -12,7 +12,7 @@ affiliations:
     - name: Harvard-Smithsonian Center for Astrophysics, 60 Garden St. Cambridge, MA 02134
       index: 1
 date: 05 May 2024
-bilbiography: paper.bib
+bibliography: paper.bib
 ---
 
 # Summary

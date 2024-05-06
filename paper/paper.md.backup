@@ -12,7 +12,7 @@ affiliations:
     - name: Harvard-Smithsonian Center for Astrophysics, 60 Garden St. Cambridge, MA 02134
       index: 1
 date: 05 May 2024
-bilbiography: paper.bib
+bibliography: paper.bib
 ---
 
 # Summary
@@ -27,7 +27,7 @@ mapping speeds have disseminated primarily as a single number calculated as the 
 
 ![Mapping speeds profiles by scan radius (in arcminutes) for a single pointing.\label{fig:M2mappingSpeeds}](AverageMappingSpeedsTogether_M2homepage.png){ width=80% }
 
-This package is based on MUSTANG-2 data products from the MIDAS pipeline [@romero:2020]. There is an alternative data processing suite, Minkasi [@romero:2020; @dicker:2020,@orlowski:2022] which allows one to fit models to data in the time domain, which is how raw MUSTANG-2 data is recorded. This data processing suite has the advantage to better recover large-scale signal, but comes with added complexity. It is thus currently not ready for public distribution.
+This package is describes MUSTANG-2 maps produced with the MIDAS pipeline [@romero:2020]. 
 
 ![Sensitivity map (map of RMS), in this case assuming a single scan size with an offset pointing strategy.\label{fig:M2simObs}](SimulatedObservations_0z5_6m0_3s5_3s5_10h0_0h0_4p0_RMSimage.png){ width=80% }
 
