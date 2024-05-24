@@ -41,6 +41,7 @@ def test_RMS_generation():
     sizes   = [-3.5]                            # Let's try offset scans! Here, 3.5' scans, offset
     times   = [10.0]                            # 10 hours
     offsets = [1.5]                               # 1.5 arcminute offset (the default, but we may change it)
+    Theta500 = 3.5                             # Radius of interest, in arcminutes. If > 0, a circle will be plotted of this radius.
 
     TemplateHDU = MRM.make_template_hdul(nx,ny,Center,pixsize)
     RMSmap,nscans = MRM.make_rms_map(TemplateHDU,Ptgs,sizes,times,offsets=offsets)
