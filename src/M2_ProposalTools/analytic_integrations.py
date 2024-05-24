@@ -2,6 +2,7 @@ import numpy as np
 import astropy.units as u
 from scipy.interpolate import interp1d # numpy should be faster...
 import scipy.special as sps
+#import warnings
 
 def log_profile(args,r_bins,radii,alphas=[],rintmax=[],finite=False):
     """   
@@ -29,6 +30,8 @@ def log_profile(args,r_bins,radii,alphas=[],rintmax=[],finite=False):
     alphas : The power-law indices between bins (e.g. pressures)
     """
 
+    #warnings.showwarning = handle_warning
+    
     #r_uniqe = np.unique(r_bins)
     #mybins=[0] + r_bins
     if not finite:
@@ -77,7 +80,8 @@ def log_profile(args,r_bins,radii,alphas=[],rintmax=[],finite=False):
             myind=(radii < rout) & (radii >= rin)
             myrad=radii[myind]
             mypres=epsnot*(myrad/rout)**(-alpha)
-            yint = 1.0 - (rin/rout)**(2-alpha)  # I could leave out the second term...
+            # I'm often not using the integrated y; but we can keep it for now.
+            yint = 0 if rin == 0 else 1.0 - (rin/rout)**(2-alpha)
             # but this ensures an error if alpha >2 ...
             rnot=rout
         elif rout == -1:
@@ -1185,3 +1189,19 @@ def ycyl_prep(Int_Pres,theta_range):
     k     = Int_Pres / theta_range**alpha
 
     return alpha,k
+
+def handle_warning(message, category, filename, lineno, file=None, line=None):
+    print('A warning occurred:')
+    print(message)
+    print('Do you wish to continue?')
+
+    while True:
+        response = input('y/n: ').lower()
+        if response not in {'y', 'n'}:
+            print('Not understood.')
+        else:
+            break
+
+    if response == 'n':
+        import pdb;pdb.set_trace()
+        #raise category(message)

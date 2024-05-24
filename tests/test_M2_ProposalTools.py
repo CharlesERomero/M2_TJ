@@ -49,6 +49,33 @@ def test_RMS_generation():
     c1          = (nx == nPixX)
     c2          = (ny == nPixY)
     c3          = (np.max(RMSmap) > 0)
+
+    prntinfo = True
+    ############## Some inputs are useful if your template HDU has an actual image you want to portray
+    ############## with respect to your RMS map. (Do features align with desired map depth?)
+    ggm      = False   # Perform Gaussian Gradient Magnitude on the image of the Template HDU
+    ncnts    = 0       # Number of contours. 1-3 is good for highlighting features. Contours are automatically created in logarithmic
+    # spacing between the minimum (acceptable, see below) and maximum ggm values.
+    ggmCut   = 0.01    # This multiplied by the *maximum* of the GGM map is a threshold. So gradients < 1% are ignored/omitted.
+    ggmIsImg = False   # If you want to display the ggm image instead of the RMS map, you can set this to True
+    # This is primarily useful to get a handle on the values of the GGM image.(So that you may decide on values above)
+    ###################################################################################################
+    vmin     = 20.0    # uK. Minimum RMS depth expected
+    vmax     = 200.0   # uK. Maximum RMS to be colored.
+    ###################################################################################################
+    tsource  = np.sum(times)        # Total hours on source.
+    R500     = Theta500*60/pixsize  # Number of pixels
+    R5c      = "k"                  # Black color for the circle drawn at R500 pixels
+    zoom     = 1.0                  # Often the map is bigger than needed; you may want to zoom in by some amount.
+    noaxes   = True                 # Label the axes? Often not necessary.
+    myfs     = 20                   # fontsize
+    ###################################################################################################
+    outpng   = "Example_rmsmap_OffsetPintings_3p5each_wR500.png"
+    
+    MRM.plot_rms_general(TemplateHDU,outpng,nscans=nscans,prntinfo=prntinfo,cra=Center[0],cdec=Center[1],
+                         ggm=ggm,ncnts=ncnts,vmin=vmin,vmax=vmax,ggmCut=ggmCut,ggmIsImg=ggmIsImg,rmsmap=RMSmap,
+                         tsource=tsource,R500=R500,r5col=R5c,zoom=zoom,noaxes=noaxes,myfs=myfs)
+    
     assert c1*c2*c3
 
 def test_A10_generation():

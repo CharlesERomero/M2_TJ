@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
-from matplotlib import cm
+#from matplotlib import cm
+from matplotlib import colormaps
 from reproject import reproject_interp
 from astropy.wcs import WCS
 from astropy.io import fits
@@ -14,9 +15,11 @@ def get_rms_cmap():
     :return: colormap
     :rtype: object
     """
-    mycmap=cm.get_cmap('tab20b').copy()
-    mydcm=cm.get_cmap('tab20b',256)
-    newcolors = mydcm(np.linspace(0,1,256))
+    #mycmap=cm.get_cmap('tab20b').copy()
+    #mydcm=cm.get_cmap('tab20b',256)
+    mycmap=colormaps['tab20b'].copy()
+    #mydcm = colormaps['tab20b']
+    #newcolors = mydcm(np.linspace(0,1,256))
     mycmap.set_under('w')
     mycmap.set_over('w')
     

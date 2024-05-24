@@ -579,7 +579,7 @@ def get_ell_rads(x,y,ella,ellb):
 
     return xnew, ynew
 
-def a10_from_m500_z(m500, z,rads,Dist=False,c500=None,p=None,a=None,b=None,c=None):
+def a10_from_m500_z(m500, z,rads,Dist=True,c500=None,p=None,a=None,b=None,c=None):
     """
     Parameters
     ----------
@@ -756,7 +756,7 @@ def get_sz_values():
 
     return sz_cons_values, sz_cons_units
 
-def make_A10Map(M500,z,pixsize=2,h70=1,nb_theta_range=150,Dist=False,nR500=3.0,c500=None,p=None,a=None,b=None,c=None):
+def make_A10Map(M500,z,pixsize=2,h70=1,nb_theta_range=150,Dist=True,nR500=3.0,c500=None,p=None,a=None,b=None,c=None):
     """
     Makes an A10 map with automated mapsize.
 
@@ -980,7 +980,7 @@ def lightweight_filter_ptg(skymap,size,pixsize,WIKID=False):
     return yxfer
 
 def lightweight_simobs_A10(z,M500,ptgs=[[180,45.0]],sizes=[3.5],times=[10.0],offsets=[1.5],
-                           center=[180,45.0],xsize=12.0,ysize=12.0,pixsize=2.0,Dist=False,
+                           center=[180,45.0],xsize=12.0,ysize=12.0,pixsize=2.0,Dist=True,
                            fwhm=9.0,conv2uK=False,verbose=False,y2k=-3.4,c500=None,p=None,a=None,b=None,c=None):
     """   
     A lightweight mock observation tool. To be lightweight, everything is approximate -- but it's fast!
@@ -1089,7 +1089,7 @@ def lightweight_simobs_A10(z,M500,ptgs=[[180,45.0]],sizes=[3.5],times=[10.0],off
     
     return SkyCoadd, SkySmHDU,SkyHDU
 
-def make_A10_hdu(z,M500,pixsize,center=[180,45.0],nR500=3.0,Dist=False,beamConvolve=True,conv2uK=True,y2k=-3.4,
+def make_A10_hdu(z,M500,pixsize,center=[180,45.0],nR500=3.0,Dist=True,beamConvolve=True,conv2uK=True,y2k=-3.4,
                  c500=None,p=None,a=None,b=None,c=None):
     """   
     Compute and grid an A10 Compton y profile and put it into an HDUList

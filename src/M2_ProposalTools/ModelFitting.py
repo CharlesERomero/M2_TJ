@@ -16,8 +16,8 @@ WH=reload(WH)
     
 
 def fit_spherical_model(z,M500,hdul,model="NP",pink=True,alpha=2,knee=1.0/120.0,nkbin=100,fwhm=9.0,nsteps=1000,
-                        y2k=-3.4,uKinput=True,ySph=True,YMrel="A10",outdir="/home/data/",outbase="NP_fit_corner.png",
-                        size=3.5,Dist=False,plotPin=True,adPhys=True,WIKID=False):
+                        y2k=-3.4,uKinput=True,ySph=True,YMrel="A10",outdir="/tmp/",outbase="NP_fit_corner.png",
+                        size=3.5,Dist=False,plotPin=True,adPhys=True,WIKID=False,fit_cen=True,addNoise=True):
 
     """
     :param z: Redshift
@@ -54,6 +54,8 @@ def fit_spherical_model(z,M500,hdul,model="NP",pink=True,alpha=2,knee=1.0/120.0,
     :type outbase: str
     :param size: size of Lissajous daisy scan used (for transfer function). Options are 2.5, 3.0, 3.5, 4.0, 4.5, or 5.0
     :type size: float.
+    :param fit_cen: Fit for a center? Default is True
+    :type fit_cen: bool
     
     """
 
@@ -62,8 +64,16 @@ def fit_spherical_model(z,M500,hdul,model="NP",pink=True,alpha=2,knee=1.0/120.0,
     
     conv         = 1e-6/y2k if uKinput else 1.0/y2k 
     sf           = WH.get_smoothing_factor(fwhm=fwhm)
-    hdul[0].data = hdul[0].data*conv
-    hdul[1].data = hdul[1].data / ( conv**2 )
+    if addNoise:
+        hdul[0].data = hdul[0].data*conv
+        hdul[1].data = hdul[1].data / ( conv**2 )
+    else:
+        pixsize      = WH.get_pixarcsec(hdul)
+        SigImg       = FI.fourier_filtering_2d(hdu[0].data,"gauss",fwhm/pixsize)
+        SigWts       = FI.fourier_filtering_2d(hdu[1].data,"gauss",fwhm/pixsize)
+        SigWts      *= (sf/pixsize)**2
+        hdul[0].data = SigImg*1.0
+        hdul[1].data = SigWts*1.0
     SNRmap       = WH.get_SNR_map(hdul)
     SNRhdu       = fits.PrimaryHDU(SNRmap,header=hdul[0].header)
     SNRhdu.writeto(outdir+"SNRmap.fits",overwrite=True)
@@ -71,13 +81,16 @@ def fit_spherical_model(z,M500,hdul,model="NP",pink=True,alpha=2,knee=1.0/120.0,
     pixsize      = WH.get_pixarcsec(hdul)
     intSNR,xc,yc,xymap = get_int_SNR(SNRmap,pixsize,maxRad=2.0,bv=120.0,SNRthresh=1.0)
 
-    Noise        = WH.get_noise_realization(hdul,pink=pink,alpha=alpha,knee=knee,nkbin=nkbin,fwhm=fwhm)
+    if addNoise:
+        Noise        = WH.get_noise_realization(hdul,pink=pink,alpha=alpha,knee=knee,nkbin=nkbin,fwhm=fwhm)
+    else:
+        Noise        = np.zeros(hdul[0].data.shape)
     # Modify HDU list to have mock-data and correctly weighted pixels.
     # Want to work in Compton y for fitting.
 
     ###############################################################################################
 
-    efv        = get_emcee_fit_vars(CosmoPars,M500,intSNR,xc,yc,pixsize,outdir,
+    efv        = get_emcee_fit_vars(CosmoPars,M500,intSNR,xc,yc,pixsize,outdir,fit_cen=fit_cen,
                                     MinRes=pixsize/2.0,model=model,ySph=ySph,YMrel=YMrel,size=size,
                                     Dist=Dist,WIKID=WIKID)
     mask         = automated_mask(xymap,CosmoPars,efv)
@@ -811,7 +824,7 @@ def fit_Gaussian_toSNR(SNRmap,pixsize,maxRad=2.0):
     #p0      = np.array([x0,y0,amplitude,sigma,mnlvl])
     xshift  = 1.0  # As a guess
     yshift  = 1.0  # in arcseconds
-    sigma   = 10.0 # Gaussian sigma, in arcseconds
+    sigma   = 20.0 # Gaussian sigma, in arcseconds
     mnlvl   = 1e-2 # Plausible, for an SNR map
     p0      = np.array([xshift,yshift,maxSNR,sigma,mnlvl])
     
