@@ -17,7 +17,8 @@ def get_rms_cmap():
     """
     #mycmap=cm.get_cmap('tab20b').copy()
     #mydcm=cm.get_cmap('tab20b',256)
-    mycmap=colors.Colormap('tab20b')
+    mycmap=plt.get_cmap('tab20b',256)
+    #mycmap=colors.Colormap('tab20b')
     #mydcm = colors.Colormap('tab20b',256)
     #newcolors = mydcm(np.linspace(0,1,256))
     mycmap.set_under('w')
