@@ -63,23 +63,31 @@ def fit_spherical_model(z,M500,hdul,model="NP",pink=True,alpha=2,knee=1.0/120.0,
     ### This relies on how good our data are.
     
     conv         = 1e-6/y2k if uKinput else 1.0/y2k 
+    hdul[0].data = hdul[0].data*conv
+    hdul[1].data = hdul[1].data / ( conv**2 )
+    hdu4snr      = hdul.copy()
     sf           = WH.get_smoothing_factor(fwhm=fwhm)
     if addNoise:
-        hdul[0].data = hdul[0].data*conv
-        hdul[1].data = hdul[1].data / ( conv**2 )
+        print("Making SNR map")
     else:
         pixsize      = WH.get_pixarcsec(hdul)
-        SigImg       = FI.fourier_filtering_2d(hdu[0].data,"gauss",fwhm/pixsize)
-        SigWts       = FI.fourier_filtering_2d(hdu[1].data,"gauss",fwhm/pixsize)
+        SigImg       = FI.fourier_filtering_2d(hdul[0].data,"gauss",fwhm/pixsize)
+        SigWts       = FI.fourier_filtering_2d(hdul[1].data,"gauss",fwhm/pixsize)
         SigWts      *= (sf/pixsize)**2
-        hdul[0].data = SigImg*1.0
-        hdul[1].data = SigWts*1.0
-    SNRmap       = WH.get_SNR_map(hdul)
+        print(sf/pixsize,conv)
+        hdu4snr[0].data = SigImg
+        hdu4snr[1].data = SigWts
+        sf           = 1.0
+    SNRmap       = WH.get_SNR_map(hdu4snr)
     SNRhdu       = fits.PrimaryHDU(SNRmap,header=hdul[0].header)
     SNRhdu.writeto(outdir+"SNRmap.fits",overwrite=True)
     CosmoPars    = WH.get_cosmo_pars(z)
     pixsize      = WH.get_pixarcsec(hdul)
     intSNR,xc,yc,xymap = get_int_SNR(SNRmap,pixsize,maxRad=2.0,bv=120.0,SNRthresh=1.0)
+    if addNoise == False:
+        intSNR = np.sqrt(intSNR*2)
+    print("Integrated SNR taken to be: ",intSNR)
+    print("Adopting a center of ",xc,yc)
 
     if addNoise:
         Noise        = WH.get_noise_realization(hdul,pink=pink,alpha=alpha,knee=knee,nkbin=nkbin,fwhm=fwhm)
@@ -114,7 +122,7 @@ def automated_mask(xymap,cosmo_pars,efv):
     return mask
 
 def get_emcee_fit_vars(cosmo_pars,M500,SNRint,xc,yc,pixsize,outdir,
-                       MinRes=1.0,model="NP",ySph=True,YMrel="A10",nb_theta_range=150,SNRperbin=4.0,
+                       MinRes=1.0,model="NP",ySph=True,YMrel="A10",nb_theta_range=150,SNRperbin=5.0,
                        n_at_rmin=False,fit_mnlvl=True,fit_cen=True,fit_geo=False,size=3.5,Dist=False,
                        WIKID=False):
     """
@@ -1033,12 +1041,19 @@ def pos_neg_formatter(med,high_err,low_err,sys=None,cal=None):
     mypow = np.floor(np.log10(med))
     myexp = 10.0**mypow
 
-    if mypow > 0:
-        psign = '+'
-        pStr = psign+str(int(mypow))
+    if np.isfinite(mypow):
+        if mypow > 0:
+            psign = '+'
+            pStr = psign+str(int(mypow))
+        else:
+            pStr = str(int(mypow))
     else:
+        # This captures an exceptional case.
+        print(med)
+        mypow = 0.0
+        myexp = 1.0
         pStr = str(int(mypow))
-        
+            
     msig  = med/myexp
     hsig  = high_err/myexp
     lsig  = low_err/myexp
