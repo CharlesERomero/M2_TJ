@@ -1042,14 +1042,15 @@ def lightweight_simobs_A10(z,M500,ptgs=[[180,45.0]],sizes=[3.5],times=[10.0],off
 
     SkyMaps        = []
     SkyWtmap       = MRM.make_template_hdul(nx,ny,center,pixsize)
+    print("Hi")
     
     for si,(p,s,t,o) in enumerate(zip(ptgs,sizes,times,offsets)):
 
         wtmap          = np.zeros(mymap.shape)
+        npix         = int(np.round((s*60*2)/pixsize))
+        cosdec       = np.cos(p[1]*np.pi/180.0)
         if o > 0:
             degoff       = o/60.0 # Offset in degrees
-            cosdec       = np.cos(p[1]*np.pi/180.0)
-            npix         = int(np.round((s*60*2)/pixsize))
             for i in range(4):
                 wtmap        = np.zeros(mymap.shape)
                 newx         = p[0] + np.cos(np.pi*i/2)*degoff/cosdec
@@ -1193,11 +1194,11 @@ def lightweight_simobs_hdu(SkyHDU,ptgs=[[180,45.0]],sizes=[3.5],times=[10.0],off
     for si,(p,s,t,o) in enumerate(zip(ptgs,sizes,times,offsets)):
 
         wtmap          = np.zeros((nx,ny))
+        degoff       = o/60.0 # Offset in degrees
+        cosdec       = np.cos(p[1]*np.pi/180.0)
+        FOV          = 8.5 if WIKID else 4.2
+        npix         = int(np.round((s*60*1.5+FOV)/pixsize))
         if o > 0:
-            degoff       = o/60.0 # Offset in degrees
-            cosdec       = np.cos(p[1]*np.pi/180.0)
-            FOV          = 8.5 if WIKID else 4.2
-            npix         = int(np.round((s*60*1.5+FOV)/pixsize))
             for i in range(4):
                 wtmap        = np.zeros((nx,ny))
                 newx         = p[0] + np.cos(np.pi*i/2)*degoff/cosdec

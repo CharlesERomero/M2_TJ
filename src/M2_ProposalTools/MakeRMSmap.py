@@ -511,9 +511,9 @@ def get_mapspd_pars(size,WIKID=False):
         if size == 4.0:
             p = [3.85*3.3,0.17]
         if size == 4.5:
-            p - [4.2*3.3,0.128]
+            p = [4.2*3.3,0.128]
         if size == 5.0:
-            p - [5.02*3.3,0.12]
+            p = [5.02*3.3,0.12]
             
         #print(p)
         ### To be confirmed

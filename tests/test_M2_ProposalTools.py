@@ -2,6 +2,7 @@ import pytest
 import M2_ProposalTools.WorkHorse as WH
 import M2_ProposalTools.FilterImages as FI
 import M2_ProposalTools.MakeRMSmap as MRM
+import M2_ProposalTools.M2_vis_plot_year as M2vis
 import numpy as np
 import os
 import astropy.units as u
@@ -139,3 +140,6 @@ def test_AlphaOmega():
     nsstr    = "_"+repr(nsteps)+"steps"
     outbase = "NP_fit_"+InputStr+nsstr+"_corner.png"
     MF.fit_spherical_model(z,M500,inputHDU,outdir=outdir,nsteps=nsteps,outbase=outbase)   # 100 for testing purposes
+def test_VisibilityPlot():
+
+    M2vis.get_year_visibilities()

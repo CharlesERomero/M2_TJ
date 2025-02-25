@@ -6,7 +6,7 @@ Notebooks
 
     Create an RMS map for a (mostly) arbitrary scanning strategy <Example_RMSmaps.ipynb>
     
-    Find filtered signal peaks, and find observing time for a peak detection of X :math:`\\sigma` for a single pointing <SinglePointing_M2.ipynb>
+    Find filtered signal peaks, and find observing time for a peak detection of X :math:`{\sigma}` for a single pointing <M2_t_cluster_detection.ipynb>
     
     Create an RMS map *and* filter a simple galaxy cluster model  <Leightweight_SimObs_A10.ipynb>
     
