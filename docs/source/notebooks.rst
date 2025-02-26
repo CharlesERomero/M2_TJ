@@ -4,6 +4,8 @@ Notebooks
 .. toctree::
    :maxdepth: 1
 
+    This is Terrible.      
+
     Create an RMS (σ) map for a (mostly) arbitrary scanning strategy <Example_RMSmaps.ipynb>
     
     Find filtered signal peaks, and find observing time for a peak detection of some σ assuming a single pointing <M2_t_cluster_detection.ipynb> 
@@ -19,3 +21,5 @@ Notebooks
     Simulate pressure profile fitting for WIKID <FitPressureProfile_LW-WIKID.ipynb>
     
     Produce monthly visibility curves <Visibility_From_GB.ipynb>
+
+    Test Test Test
