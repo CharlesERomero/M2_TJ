@@ -3,10 +3,8 @@ Notebooks
 
 .. toctree::
    :maxdepth: 1
-
-    This is Terrible.      
-
-    Really RTD? <Example_RMSmaps.ipynb>
+    
+    Produce monthly visibility curves <Visibility_From_GB.ipynb>
 
     Create an RMS (σ) map for a (mostly) arbitrary scanning strategy <Example_RMSmaps.ipynb>
     
@@ -25,3 +23,6 @@ Notebooks
     Produce monthly visibility curves <Visibility_From_GB.ipynb>
 
     Test Test Test
+
+    Really RTD? <Example_RMSmaps.ipynb>
+
