@@ -14,11 +14,11 @@ sys.path.insert(0, os.path.abspath("../../src"))
 # -- Project information
 
 project = 'M2_ProposalTools'
-copyright = '2024, Charles'
-author = 'Charles'
+copyright = '2025, Charles'
+author = 'Charles Romero'
 
-release = '0.1'
-version = '0.1.0'
+release = '1.0'
+version = '1.2.2'
 
 # -- General configuration
 
