@@ -4,9 +4,9 @@ Notebooks
 .. toctree::
    :maxdepth: 1
 
-    Create an RMS :math:`\sigma` map for a (mostly) arbitrary scanning strategy <Example_RMSmaps.ipynb>
+    Create an RMS (:math:`\sigma`) map for a (mostly) arbitrary scanning strategy <Example_RMSmaps.ipynb>
     
-    Find filtered signal peaks, and find observing time for a peak detection of some $\sigma$ for a single pointing <M2_t_cluster_detection.ipynb> σ
+    Find filtered signal peaks, and find observing time for a peak detection of some σ for a single pointing <M2_t_cluster_detection.ipynb> 
     
     Create an RMS map *and* filter a simple galaxy cluster model  <Leightweight_SimObs_A10.ipynb>
     
