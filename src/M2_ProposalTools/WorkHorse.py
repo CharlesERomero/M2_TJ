@@ -361,7 +361,7 @@ def get_AAA_BBB(YMrel,delta,ycyl=False,h70=1.0):
 
     return AAA,BBB
 
-def get_xymap(map,pixsize,xcentre=[],ycentre=[],oned=True,cpix=0):
+def get_xymap(map,pixsize,xcentre=None,ycentre=None,oned=True,cpix=0):
     """
     Returns a map of X and Y offsets (from the center) in arcseconds.
 
@@ -386,9 +386,9 @@ def get_xymap(map,pixsize,xcentre=[],ycentre=[],oned=True,cpix=0):
     ny,nx=map.shape
     ypix = pixsize.to("arcsec").value # Generally pixel sizes are the same...
     xpix = pixsize.to("arcsec").value # ""
-    if xcentre == []:
+    if xcentre is None:
         xcentre = nx/2.0
-    if ycentre == []:
+    if ycentre is None:
         ycentre = ny/2.0
 
     #############################################################################
