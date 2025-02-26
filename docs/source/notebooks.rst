@@ -6,6 +6,8 @@ Notebooks
 
     This is Terrible.      
 
+    Really RTD? <Example_RMSmaps.ipynb>
+
     Create an RMS (σ) map for a (mostly) arbitrary scanning strategy <Example_RMSmaps.ipynb>
     
     Find filtered signal peaks, and find observing time for a peak detection of some σ assuming a single pointing <M2_t_cluster_detection.ipynb> 
