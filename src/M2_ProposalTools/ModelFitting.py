@@ -17,7 +17,8 @@ WH=reload(WH)
 
 def fit_spherical_model(z,M500,hdul,model="NP",pink=True,alpha=2,knee=1.0/120.0,nkbin=100,fwhm=9.0,nsteps=1000,
                         y2k=-3.4,uKinput=True,ySph=True,YMrel="A10",outdir="/tmp/",outbase="NP_fit_corner.png",
-                        size=3.5,Dist=False,plotPin=True,adPhys=True,WIKID=False,fit_cen=True,addNoise=True):
+                        size=3.5,Dist=False,plotPin=True,adPhys=True,WIKID=False,fit_cen=True,addNoise=True,
+                        ptdict=None, SNRperbin=5.0, nBins=0):
 
     """
     :param z: Redshift
@@ -96,15 +97,19 @@ def fit_spherical_model(z,M500,hdul,model="NP",pink=True,alpha=2,knee=1.0/120.0,
     # Modify HDU list to have mock-data and correctly weighted pixels.
     # Want to work in Compton y for fitting.
 
+    #print(np.min(Noise), np.max(Noise), np.std(Noise))
+    #import pdb;pdb.set_trace()
     ###############################################################################################
 
     efv        = get_emcee_fit_vars(CosmoPars,M500,intSNR,xc,yc,pixsize,outdir,fit_cen=fit_cen,
                                     MinRes=pixsize/2.0,model=model,ySph=ySph,YMrel=YMrel,size=size,
-                                    Dist=Dist,WIKID=WIKID)
+                                    Dist=Dist,WIKID=WIKID,ptdict=ptdict,y2k=y2k, SNRperbin=SNRperbin,
+                                    nBins=nBins)
     mask         = automated_mask(xymap,CosmoPars,efv)
 
     hdul[0].data = hdul[0].data + Noise
     hdul[1].data = hdul[1].data*mask / ( sf**2 )
+    #print("JUST WTF IS GOING ON", np.std(Noise))
 
     hdul.writeto(outdir+"InputHDU.fits",overwrite=True)
     
@@ -124,7 +129,7 @@ def automated_mask(xymap,cosmo_pars,efv):
 def get_emcee_fit_vars(cosmo_pars,M500,SNRint,xc,yc,pixsize,outdir,
                        MinRes=1.0,model="NP",ySph=True,YMrel="A10",nb_theta_range=150,SNRperbin=5.0,
                        n_at_rmin=False,fit_mnlvl=True,fit_cen=True,fit_geo=False,size=3.5,Dist=False,
-                       WIKID=False):
+                       WIKID=False,ptdict=None,y2k=-3.4, nBins=0):
     """
     :param cosmo_pars: a dictionary of cosmological parameters
     :type cosmo_pars: dict
@@ -162,7 +167,8 @@ def get_emcee_fit_vars(cosmo_pars,M500,SNRint,xc,yc,pixsize,outdir,
     :type fit_geo: bool
     :param size: size of Lissajous daisy scan used (for transfer function). Options are 2.5, 3.0, 3.5, 4.0, 4.5, or 5.0
     :type size: float.
-    
+    :param cosmo_pars: a dictionary of pt source locations and amplitudes
+    :type cosmo_pars: dict    
     """
     Theta500    = WH.Theta500_from_M500_z(M500,cosmo_pars["z"])
     minpixrad   = (MinRes*u.arcsec).to('rad')
@@ -177,11 +183,14 @@ def get_emcee_fit_vars(cosmo_pars,M500,SNRint,xc,yc,pixsize,outdir,
     #geom     = [X_shift, Y_shift, Rotation, Ella*, Ellb*, Ellc*, Xi*, Opening Angle]
     default_geo = [0,0,0,1,1,1,0,0]
 
-    nBins       = int(np.round( (SNRint/SNRperbin)**2 ))
-    if nBins < 4:
-        print(SNRint,SNRperbin)
-        print("Oh no, nBins is less than 4! Your data is probably not sufficient for this analysis")
-        nBins   = 4
+    if nBins == 0:
+        nBins       = int(np.round( (SNRint/SNRperbin)**2 ))
+        if nBins < 4:
+            print(SNRint,SNRperbin)
+            print("Oh no, nBins is less than 4! Your data is probably not sufficient for this analysis")
+            nBins   = 4
+        if nBins > 10:
+            nBins = int(np.round( np.sqrt(nBins + 2))) + 1
         
     radmin      = 5.0 *np.pi / (180*3600)                # 5" in radians
     radminmax   = np.array( [radmin,Theta500] )          # Between 5" and R500, in radians
@@ -237,18 +246,25 @@ def get_emcee_fit_vars(cosmo_pars,M500,SNRint,xc,yc,pixsize,outdir,
         uppbnd.extend(fcval*20)
         lowbnd.extend(-fcval*20)
 
+    if not (ptdict is None):
+        myval.extend(ptdict["amp0"])
+        nPts = len(ptdict["amp0"])
+        sbepos.extend([True]*nPts)
+        pt_labels = [rf'''S$_{{{sub}}}$''' for sub in range(nPts)]
+        labels.extend(pt_labels)
+        uppbnd.extend(np.array(ptdict["amp0"])*10.0)
+        lowbnd.extend(np.array(ptdict["amp0"])/10.0)
     ######################################################################################
 
-    zstr   = "{:.1f}".format(cosmo_pars["z"]).replace(".","z")
-    Mstr   = "{:.1f}".format(M500.to("M_sun").value/1e14).replace(".","m")
-
+    zstr   = "{:.2f}".format(cosmo_pars["z"]).replace(".","z")
+    Mstr   = "{:.2f}".format(M500.to("M_sun").value/1e14).replace(".","m")
 
     efv         = {"Thetas":thetas,"y500s":y500s,"model":model,"ySph":ySph,"Pdl2y":Pdl2y,"geo":default_geo,
                    "M500":M500,"Theta500":Theta500,"YMrel":YMrel,"bins":bins,"nBins":nBins,"fit_mnlvl":fit_mnlvl,
                    "fit_cen":fit_cen,"fit_geo":fit_geo,"narm":n_at_rmin,"fixalpha":False,"finite":False,
                    "pinit":myval,"sbepos":sbepos,"pixsize":pixsize,"labels":labels,"outdir":outdir,
                    "size":size,"Mstr":Mstr,"zstr":zstr,"lowbnd":lowbnd,"uppbnd":uppbnd,"Dist":Dist,
-                   "WIKID":WIKID}    
+                   "WIKID":WIKID,"ptsrc":ptdict, "y2k":y2k}    
 
     return efv
 
@@ -274,7 +290,7 @@ def run_emcee(hdul,cosmo_pars,efv,xymap,outfile,BSerr=False,nsteps=1000,plotPin=
     """
 
     # Call this once outside of the MCMC
-    tab = WH.get_xfertab(efv["size"],WIKID=efv["WIKID"])
+    tab = WH.get_xfertab(efv["size"], WIKID=efv["WIKID"])
 
     def lnlike(pos):                          ### emcee_fitting_vars
         outmap,yint,outalpha,mnlvl = make_skymodel_map(hdul,pos,cosmo_pars,efv,xymap)
@@ -345,7 +361,8 @@ def run_emcee(hdul,cosmo_pars,efv,xymap,outfile,BSerr=False,nsteps=1000,plotPin=
     post_mcmc_products(hdul,sampler,cosmo_pars,efv,xymap,outfile,plotPin=plotPin,adPhys=adPhys)
     
  
-def post_mcmc_products(hdul,sampler,cosmo_pars,efv,xymap,outfile,plotPin=True,adPhys=True):
+def post_mcmc_products(hdul,sampler,cosmo_pars,efv,xymap,outfile,plotPin=True,adPhys=True,
+                       samp_thin=5):
     """
     After the fitting, make plots and stuff
 
@@ -363,11 +380,13 @@ def post_mcmc_products(hdul,sampler,cosmo_pars,efv,xymap,outfile,plotPin=True,ad
     :type outfile: str
     """
 
-    flat_samples = sampler.get_chain(discard=efv["nburn"], thin=efv["nwalkers"],flat=True)
+    #flat_samples = sampler.get_chain(discard=efv["nburn"], thin=efv["nwalkers"]//2,flat=True)
+    flat_samples = sampler.get_chain(discard=efv["nburn"], thin=samp_thin,flat=True)
+    #import pdb; pdb.set_trace()
     mysolns = np.array(list(map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]),
                              zip(*np.percentile(flat_samples, [16, 50, 84],
                                                 axis=0)))))
-    blobarr     = sampler.get_blobs(flat=True,discard=efv["nburn"], thin=efv["nwalkers"])
+    blobarr     = sampler.get_blobs(flat=True,discard=efv["nburn"], thin=samp_thin)
     blobarr     = blobarr[np.isfinite(blobarr)]        # No need for NANs or infs.
     Yints       = np.percentile(blobarr, [16, 50, 84],axis=0)
     yinteg      = Yints[1]       # This is the median...i.e. the best-fit value
@@ -394,6 +413,8 @@ def post_mcmc_products(hdul,sampler,cosmo_pars,efv,xymap,outfile,plotPin=True,ad
     np.save(npysave,mysolns)
     chains_save = npysave.replace("solutions","chains")
     np.save(chains_save,flat_samples)
+    radii_save = chains_save.replace("chains","radii_arcmin")
+    np.save(radii_save,efv["bins"]*60*180/np.pi)   # Arcminutes
     if not outfile is None:
         fig = corner.corner(flat_samples, labels=efv["labels"], quantiles=[0.16,0.84])
         fig.savefig(outfile)
@@ -520,7 +541,14 @@ def make_skymodel_map(hdul,pos,cosmo_pars,efv,xymap):
         mnlvl = 0
             
     mymap,posind,ynt,myalphas = ellipsoidal_ICM(cosmo_pars,efv,pos,xymap,alp,posind,fixalpha=efv["fixalpha"])
-    outmap = mymap
+    outmap = mymap*1.0
+    if not (efv["ptsrc"] is None):
+        for loc in efv["ptsrc"]["loc"]:
+            amp_Comptony = pos[posind] * efv["ptsrc"]["antgain"] * 1e-6 / efv["y2k"]
+            ptmap = WH.add_ptsrc_hdu(hdul, amp_Comptony, loc=loc, antgain=1.0, verbose = False, retPtSrc=True)
+            outmap = outmap + ptmap
+            posind += 1
+            #print(posind, len(pos))
     yint.extend([np.real(ynt)]); outalphas.extend([np.real(myalphas)])
 
     return outmap,yint,outalphas,mnlvl
@@ -864,7 +892,7 @@ def circ_Gauss(xdata,xc,yc,norm,sig,mnlvl):
     
     return model
 
-def get_int_SNR(SNRmap,pixsize,maxRad=2.0,bv=120.0,SNRthresh=1.0):
+def get_int_SNR(SNRmap,pixsize,maxRad=2.0,bv=120.0,SNRthresh=1.0,refit=False, rmin=20.0):
     """
     Get the integrated detection significance.
 
@@ -880,19 +908,27 @@ def get_int_SNR(SNRmap,pixsize,maxRad=2.0,bv=120.0,SNRthresh=1.0):
     :type SNRthresh: float
     """
 
-    popt,pcov,xc,yc        = fit_Gaussian_toSNR(SNRmap,pixsize,maxRad=maxRad)
-    xcentre                = xc+popt[0]
-    ycentre                = yc+popt[1]
+    if refit:
+        popt,pcov,xc,yc        = fit_Gaussian_toSNR(SNRmap,pixsize,maxRad=maxRad)
+        xcentre                = xc+popt[0]
+        ycentre                = yc+popt[1]
+    else:
+        imshp                  = SNRmap.shape
+        xcentre                = imshp[0]/2.0
+        ycentre                = imshp[1]/2.0
     xymap                  = WH.get_xymap(SNRmap,pixsize*u.arcsec,xcentre=xcentre,ycentre=ycentre,oned=False)
-    rmap                   = WH.make_rmap(xymap)
+    rmap                   = WH.make_rmap(xymap)  # in arcseconds
     rbin,ybin,yerr,ycnts   = bin_two2Ds(rmap,SNRmap,binsize=pixsize*2.0)
 
-    badind                 = (ybin < SNRthresh)
+    badind                 = (ybin < SNRthresh)*(rbin > rmin)
     RadThresh              = np.min(rbin[badind])
-    goodind                = (rmap < RadThresh)
+    goodind                = (rmap < RadThresh)*(rmap > rmin)
     goodSNR                = SNRmap[goodind]
     NumberBeams            = np.sum(goodind)*pixsize**2 / bv
-    SNRint                 = np.sqrt( np.sum(SNRmap**2)/(NumberBeams) )
+    SNRint                 = np.sqrt( np.sum(SNRmap**2)/(2*NumberBeams) )
+
+    print("Integrated SNR check ", RadThresh, np.sum(goodind), SNRint)
+    #import pdb;pdb.set_trace()
 
     return SNRint,xcentre,ycentre,xymap
     

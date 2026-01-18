@@ -57,6 +57,16 @@ def inst_params(instrument):
         smfw  = 10.0*u.arcsec
         freq  = 90.0*u.gigahertz # GHz
         FoV   = 4.25*u.arcmin 
+
+    if instrument == "M2stack":
+        fwhm1 = 9.1*u.arcsec  # arcseconds
+        norm1 = 0.965          # normalization
+        fwhm2 = 24.9*u.arcsec # arcseconds
+        norm2 = 0.035          # normalization
+        fwhm  = 9.0*u.arcsec
+        smfw  = 10.0*u.arcsec
+        freq  = 90.0*u.gigahertz # GHz
+        FoV   = 4.25*u.arcmin 
         
     if instrument == "NIKA":
         fwhm1 = 8.7*2.0*u.arcsec  # arcseconds
@@ -805,7 +815,7 @@ def make_A10Map(M500,z,pixsize=2,h70=1,nb_theta_range=150,Dist=True,nR500=3.0,c5
 
     return ymap
 
-def smooth_by_M2_beam(image,pixsize=2.0):
+def smooth_by_M2_beam(image,pixsize=2.0, inst="MUSTANG2"):
     """
     Smooths an image by a double Gaussian that is representative for MUSTANG-2.
 
@@ -824,7 +834,7 @@ def smooth_by_M2_beam(image,pixsize=2.0):
     """
 
     
-    fwhm1,norm1,fwhm2,norm2,fwhm,smfw,freq,FoV = inst_params("MUSTANG2")
+    fwhm1,norm1,fwhm2,norm2,fwhm,smfw,freq,FoV = inst_params(inst)
 
     sig2fwhm   = np.sqrt(8.0*np.log(2.0)) 
     pix_sigq1  = fwhm1/(pixsize*sig2fwhm*u.arcsec)
@@ -1071,7 +1081,7 @@ def lightweight_simobs_A10(z,M500,ptgs=[[180,45.0]],sizes=[3.5],times=[10.0],off
             TemplateHDU  = MRM.make_template_hdul(npix,npix,p,pixsize)
             ptghdr       = TemplateHDU[0].header
             ycutout,fp0  = MRM.reproject_fillzeros(SkyHDU,ptghdr)
-            wtmap        = MRM.add_to_wtmap(wtmap,Skyhdr,p,s,t,offset=o) # Need to fix
+            wtmap        = MRM.add_to_wtmap(wtmap,Skyhdr,p,s,t,offset=0) # Need to fix
             maxwt        = np.max(wtmap)
             minrms       = 1.0/np.sqrt(maxwt)
             TemplateHDU[0].data = lightweight_filter_ptg(ycutout,s,pixsize)
@@ -1100,7 +1110,7 @@ def make_A10_hdu(z,M500,pixsize,center=[180,45.0],nR500=3.0,Dist=True,beamConvol
     z : float
        The redshift
     M500 : quantity
-       :math:`M\_{500}` with units of mass
+       :math:`M_{500}` with units of mass
     pixsize : float
        The pixel size, in arcseconds
     center : list
@@ -1137,6 +1147,40 @@ def make_A10_hdu(z,M500,pixsize,center=[180,45.0],nR500=3.0,Dist=True,beamConvol
     SkyHDU[0].data = mymap*myFactor
 
     return SkyHDU
+
+def add_ptsrc_hdu(SkyHDU, amp_ujy, loc=[180,45.0], antgain=1.3, verbose = False, retPtSrc=False,
+                  inst="MUSTANG2"):
+    """   
+    Compute and grid an A10 Compton y profile and put it into an HDUList
+
+    Parameters
+    ----------
+    SkyHDU : object
+       An AstroPy HDU with a simulated image (presumably in uK).
+    amp_jy : amplitude of point source in microJanskies (presumably at 90 GHz).
+    loc : Optional[list]
+       A two-element list corresponding to the RA and Dec of the point source
+    antgain : Optional[float]
+    verbose : bool
+       Have the function print extraneous information?
+    """
+
+    xymap = MRM.make_xymap(SkyHDU[0].data,SkyHDU[0].header,loc[0],loc[1])
+    rmap = MRM.make_rmap(xymap)
+    
+    fwhm1,norm1,fwhm2,norm2,fwhm,smfw,freq,FoV = inst_params(inst)
+    s2f = 2*np.sqrt(2*np.log(2))
+    sigma1 = fwhm1.to("arcmin").value/s2f
+    sigma2 = fwhm2.to("arcmin").value/s2f
+    beam1 = norm1 * np.exp( -(rmap**2) / (2 * sigma1**2 ) )
+    beam2 = norm2 * np.exp( -(rmap**2) / (2 * sigma2**2 ) )
+    beam = beam1 + beam2
+
+    ptsrc = amp_ujy * beam / antgain  # in uK
+    if retPtSrc:
+        return ptsrc
+    else:
+        SkyHDU[0].data += ptsrc
 
 def lightweight_simobs_hdu(SkyHDU,ptgs=[[180,45.0]],sizes=[3.5],times=[10.0],offsets=[1.5],
                            center=None,xsize=12.0,ysize=12.0,pixsize=2.0,fwhm=9.0,verbose=False,WIKID=False):
@@ -1315,7 +1359,7 @@ def get_noise_realization(hdul,pink=True,alpha=2,knee=1.0/60.0,nkbin=100,fwhm=9.
 
     return noise
 
-def get_smoothing_factor(fwhm=9.0):
+def get_smoothing_factor(fwhm=9.0, pixsize=1.0):
     """   
     Parameters
     ----------
@@ -1331,7 +1375,7 @@ def get_smoothing_factor(fwhm=9.0):
     s2f         = np.sqrt(8.0*np.log(2.0))
     sig         = fwhm/s2f
     bv          = 2*np.pi*sig**2
-    sf          = np.sqrt(bv)
+    sf          = np.sqrt(bv) / pixsize
 
     return sf
 
@@ -1362,8 +1406,10 @@ def make_pinknoise_real(rmsmap,pixsize,alpha=2,knee=1.0/120.0,nkbin=100,fwhm=9.0
 
     nx,ny       = rmsmap.shape
     k_img       = np.logspace(np.log10(1/(pixsize*nx)),np.log10(1.0/pixsize),nkbin)
+    #kmin        = 1/(pixsize*nx)
+    kmax        = 1.0/pixsize
     if alpha == 2:
-        term1   = 2*np.pi * np.log(knee/kmin)
+        term1   = 2*np.pi * np.log(kmax/kmin)
     else:
         term0   = knee**(2-alpha) - kmin**(2-alpha)
         term1   = ( 2*np.pi*term0 )/(2-alpha) # Excess from pink noise
@@ -1371,15 +1417,24 @@ def make_pinknoise_real(rmsmap,pixsize,alpha=2,knee=1.0/120.0,nkbin=100,fwhm=9.0
     pink_renorm = term2 / (term1 + term2)               # Pwn vs. Ptotal
     p_init      = pixsize**2/np.pi                      # Normalization for WN
     pl_part     = (k_img/knee)**(-alpha)
-    pink        = (1 + pl_part)*p_init*pink_renorm      # Full pink noise, normalized
-    sf          = get_smoothing_factor(fwhm=fwhm)
+    kltmin      = (k_img < kmin)
+    pl_part[kltmin] *= (k_img[kltmin]/kmin)**2
+    pink        = (1 + pl_part)*p_init     # Full pink noise, normalized
+    sf          = get_smoothing_factor(fwhm=fwhm,pixsize=pixsize)
     
     noise_init  = make_image(k_img,pink,nx=nx,ny=ny,pixsize=pixsize)
-    noise       = noise_init*rmsmap*sf
+    xymap = get_xymap(rmsmap,pixsize*u.arcsec)
+    rmap = np.sqrt(xymap[0]**2 + xymap[1]**2)
+    canonical   = (rmsmap < 2.0)
+    renorm = np.std(noise_init[canonical])
+    noise       = noise_init*rmsmap*sf / renorm
 
     nzrms       = (rmsmap > 0)
-    #print(np.max(rmsmap),np.min(rmsmap[nzrms]))
+    #print("Max and min of RMSmap: ", np.max(rmsmap),np.min(rmsmap[nzrms]))
+    #print(sf , np.std(noise_init[nzrms]), np.std(rmsmap[nzrms]))
+    #print(sf , np.std(noise_init[canonical]), np.std(noise[canonical]))
     #import pdb;pdb.set_trace()
+
 
     return noise
     

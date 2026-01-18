@@ -1,6 +1,9 @@
 # emacs auto-saves
 *~
 
+# PNGs I don't want
+*.png
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

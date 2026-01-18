@@ -351,7 +351,7 @@ def apply_xfer(mymap, tab,pixsize, tabdims="1D",BSerr=False):
             mytab      = tab[1,0:]
         mapfilt    = fourier_filtering_2d(mymap,'tab',(myk,mytab))
     if tabdims == "2D":
-        centre     = mymap.shape[0]/2
+        centre     = mymap.shape[0]//2
         mymap      = mymap[centre-21:centre+21,centre-21:centre+21]
         mapfilt_ft = tab*np.fft.fft2(mymap)
         mapfilt    = np.real(np.fft.ifft2(mapfilt_ft))
@@ -381,7 +381,8 @@ def get_xfer(tabfile,tabformat='ascii',tabdims="1D",tabcomments="#",instrument="
     instrument : str
        For now, only "MUSTANG2" and "MUSTANG" are explicitly supported
     tabextend : bool
-       Extrapolate to lower frequencies? Default is True
+       Extrapolate to higher frequencies? Default is True
+       There shouldn't be any missed filtering at the highest frequencies; assume a linear fit from ~half way out and extend it. This should let the transfer function be applied even for maps gridded onto very small pixel sizes.
 
     Returns
     -------
@@ -398,23 +399,18 @@ def get_xfer(tabfile,tabformat='ascii',tabdims="1D",tabcomments="#",instrument="
     if tabdims == '1D':
         if instrument == "MUSTANG" or instrument == "MUSTANG2":
             tab = tab.T            # Transpose the table.
-#        import pdb;pdb.set_trace()
         if tabextend==True:
             tdim = tab.shape
-            #import pdb;pdb.set_trace()
             pfit = np.polyfit(tab[0,tdim[1]//2:],tab[1,tdim[1]//2:],1)
             addt = np.max(tab[0,:]) * np.array([2.0,4.0,8.0,16.0,32.0])
             extt = np.polyval(pfit,addt)
-            ### For better backwards compatability I've editted to np.vstack instead of np.stack
             if tdim[0] == 2:
-                foo = np.vstack((addt,extt)) # Mar 5, 2018
+                foo = np.vstack((addt,extt)) 
             else:
                 pfit2 = np.polyfit(tab[0,tdim[1]//2:],tab[2,tdim[1]//2:],1)
                 extt2 = np.polyval(pfit2,addt)
-                foo = np.vstack((addt,extt,extt2)) # Mar 5, 2018
+                foo = np.vstack((addt,extt,extt2)) 
 
-            #print(tab.shape, foo.shape)
             tab = np.concatenate((tab,foo),axis=1)
-#            newt = [np.append(tab[0,:],addt),np.append(tab[1,:],extt)]
             
     return tab

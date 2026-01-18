@@ -14,9 +14,7 @@ def test_locate_xfer_files():
     #xferfile       = "xfer_Function_3p0_21Aonly_PCA5_0f08Filtering.txt"
     xferfile       = "src/M2_ProposalTools/xfer_Function_3p0_21Aonly_PCA5_0f08Filtering.txt"
     fileexists     = os.path.exists(xferfile)
-    assert fileexists
-
-    
+    assert fileexists    
     
 def test_HDU_generation():
 
